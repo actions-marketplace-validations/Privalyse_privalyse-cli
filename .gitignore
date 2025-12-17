@@ -51,6 +51,7 @@ htmlcov/
 !CHANGELOG.md
 !CONTRIBUTING.md
 !CODE_OF_CONDUCT.md
+!DETECTION_RULES.md
 !examples/**/*.md
 !.github/**/*.md
 
