@@ -27,6 +27,10 @@ jobs:
         python -m pip install --upgrade pip
         pip install -e .
     
+    - name: Run Unit Tests
+      run: |
+        python -m unittest discover tests -v
+
     - name: Test CLI command
       run: |
         privalyse --help
