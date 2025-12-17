@@ -2,7 +2,52 @@
 
 import ast
 import re
-from typing import Optional
+from typing import Optional, Union
+
+
+def safe_unparse(node: Union[ast.AST, None]) -> str:
+    """
+    Safely unparse an AST node to string, compatible with Python 3.8
+    """
+    if node is None:
+        return ""
+        
+    if hasattr(ast, 'unparse'):
+        return ast.unparse(node)
+    
+    # Fallback for Python 3.8
+    try:
+        if isinstance(node, ast.Name):
+            return node.id
+        elif isinstance(node, ast.Constant):
+            return str(node.value)
+        elif hasattr(ast, 'Str') and isinstance(node, ast.Str): # Python 3.8
+            return node.s
+        elif hasattr(ast, 'Num') and isinstance(node, ast.Num): # Python 3.8
+            return str(node.n)
+        elif isinstance(node, ast.Attribute):
+            return f"{safe_unparse(node.value)}.{node.attr}"
+        elif isinstance(node, ast.Call):
+            func = safe_unparse(node.func)
+            args = ", ".join(safe_unparse(arg) for arg in node.args)
+            return f"{func}({args})"
+        elif isinstance(node, ast.Subscript):
+            return f"{safe_unparse(node.value)}[{safe_unparse(node.slice)}]"
+        elif isinstance(node, ast.Index): # Python 3.8
+            return safe_unparse(node.value)
+        elif isinstance(node, ast.BinOp):
+            # Basic support for flags (A | B) or string concat
+            op_str = "|" if isinstance(node.op, ast.BitOr) else "+"
+            return f"{safe_unparse(node.left)} {op_str} {safe_unparse(node.right)}"
+        elif isinstance(node, ast.List):
+            return "[" + ", ".join(safe_unparse(e) for e in node.elts) + "]"
+        elif isinstance(node, ast.Tuple):
+            return "(" + ", ".join(safe_unparse(e) for e in node.elts) + ")"
+    except Exception:
+        pass
+        
+    # Last resort: return empty string or type to avoid crashing
+    return ""
 
 
 def extract_ast_snippet(code: str, node: ast.AST, max_length: int = 200) -> str:

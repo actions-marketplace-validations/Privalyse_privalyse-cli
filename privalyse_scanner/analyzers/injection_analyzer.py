@@ -8,6 +8,7 @@ from typing import List, Dict, Any, Optional, Set
 from pathlib import Path
 
 from ..models.finding import Finding, Severity, ClassificationResult
+from ..utils.helpers import safe_unparse
 
 
 class InjectionAnalyzer:
@@ -414,7 +415,7 @@ class InjectionVisitor(ast.NodeVisitor):
         # yaml.load without SafeLoader
         if 'yaml.load' in func_name:
             has_safe_loader = any(
-                kw.arg == 'Loader' and 'Safe' in ast.unparse(kw.value)
+                kw.arg == 'Loader' and 'Safe' in safe_unparse(kw.value)
                 for kw in node.keywords
             )
             if not has_safe_loader:
@@ -523,7 +524,7 @@ class InjectionVisitor(ast.NodeVisitor):
                 # Check if argument contains unescaped user input
                 if self._contains_user_input(arg) or isinstance(arg, ast.Name):
                     # Check if there's HTML content or no explicit escaping
-                    arg_str = ast.unparse(arg).lower()
+                    arg_str = safe_unparse(arg).lower()
                     has_html = any(tag in arg_str for tag in ['<', '>', 'html', 'script', 'div', 'span'])
                     
                     # Only report if HTML content is present
@@ -571,7 +572,7 @@ class InjectionVisitor(ast.NodeVisitor):
             # Check for explicit entity processing configuration
             for kw in node.keywords:
                 if kw.arg in ['resolve_entities', 'no_network']:
-                    kw_value = ast.unparse(kw.value)
+                    kw_value = safe_unparse(kw.value)
                     if 'False' in kw_value:
                         has_safe_config = True
             
@@ -609,7 +610,7 @@ class InjectionVisitor(ast.NodeVisitor):
             'request.', 'input(', 'argv', 'stdin', 'get(', 'post(',
             'params', 'query', 'form', 'json', 'data'
         ]
-        node_str = ast.unparse(node).lower()
+        node_str = safe_unparse(node).lower()
         return any(pattern in node_str for pattern in user_input_patterns)
     
     def _is_dynamic_string(self, node: ast.expr) -> bool:
@@ -621,23 +622,23 @@ class InjectionVisitor(ast.NodeVisitor):
         if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
             return True
         if isinstance(node, ast.JoinedStr):
-            return '/' in ast.unparse(node) or '\\' in ast.unparse(node)
+            return '/' in safe_unparse(node) or '\\' in safe_unparse(node)
         return False
     
     def _is_dynamic_url(self, node: ast.expr) -> bool:
         """Check if node is dynamic URL"""
         if self._is_dynamic_string(node):
-            node_str = ast.unparse(node).lower()
+            node_str = safe_unparse(node).lower()
             return 'http' in node_str or 'url' in node_str
         return False
     
     def _has_path_sanitization(self, node: ast.Call) -> bool:
         """Check for path sanitization"""
-        node_str = ast.unparse(node).lower()
+        node_str = safe_unparse(node).lower()
         return 'basename' in node_str or 'abspath' in node_str or 'realpath' in node_str
     
     def _get_snippet(self, node: ast.AST) -> str:
         """Get code snippet"""
         if hasattr(node, 'lineno') and 0 < node.lineno <= len(self.lines):
             return self.lines[node.lineno - 1].strip()
-        return ast.unparse(node)[:100]
+        return safe_unparse(node)[:100]

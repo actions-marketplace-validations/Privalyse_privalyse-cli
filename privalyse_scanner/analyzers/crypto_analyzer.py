@@ -8,6 +8,7 @@ from typing import List, Dict, Any, Optional, Set
 from pathlib import Path
 
 from ..models.finding import Finding, Severity, ClassificationResult
+from ..utils.helpers import safe_unparse
 
 
 class CryptoAnalyzer:
@@ -162,7 +163,7 @@ class CryptoVisitor(ast.NodeVisitor):
             # Check keyword arguments
             for kw in node.keywords:
                 if kw.arg and 'mode' in kw.arg.lower():
-                    mode_value = ast.unparse(kw.value).upper()
+                    mode_value = safe_unparse(kw.value).upper()
                     mode_found = True
                     
                     # Check for ECB mode
@@ -196,7 +197,7 @@ class CryptoVisitor(ast.NodeVisitor):
             # Check positional arguments (second argument is usually mode)
             if not mode_found and len(node.args) >= 2:
                 mode_arg = node.args[1]
-                mode_value = ast.unparse(mode_arg).upper()
+                mode_value = safe_unparse(mode_arg).upper()
                 
                 if 'ECB' in mode_value:
                         snippet = self._get_snippet(node)
@@ -295,7 +296,7 @@ class CryptoVisitor(ast.NodeVisitor):
             # Check for insecure SSL versions
             for arg in node.args:
                 if isinstance(arg, ast.Attribute):
-                    version = ast.unparse(arg).upper()
+                    version = safe_unparse(arg).upper()
                     if any(weak in version for weak in ['SSLV2', 'SSLV3', 'TLSV1', 'TLS_V1']):
                         snippet = self._get_snippet(node)
                         self.analyzer.findings.append(Finding(
@@ -396,13 +397,13 @@ class CryptoVisitor(ast.NodeVisitor):
     def _is_password_context(self, node: ast.Call) -> bool:
         """Check if hash is being used for passwords"""
         # Look at variable names nearby
-        node_str = ast.unparse(node).lower()
+        node_str = safe_unparse(node).lower()
         password_keywords = ['password', 'passwd', 'pwd', 'auth', 'credential']
         return any(kw in node_str for kw in password_keywords)
     
     def _is_security_context(self, node: ast.Call) -> bool:
         """Check if random is used in security context"""
-        node_str = ast.unparse(node).lower()
+        node_str = safe_unparse(node).lower()
         security_keywords = [
             'token', 'secret', 'key', 'session', 'csrf', 'nonce',
             'salt', 'iv', 'password', 'auth', 'otp', 'code'
@@ -424,4 +425,4 @@ class CryptoVisitor(ast.NodeVisitor):
         """Get code snippet for node"""
         if hasattr(node, 'lineno') and 0 < node.lineno <= len(self.lines):
             return self.lines[node.lineno - 1].strip()
-        return ast.unparse(node)[:100]
+        return safe_unparse(node)[:100]

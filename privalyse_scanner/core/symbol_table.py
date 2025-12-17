@@ -17,6 +17,8 @@ from typing import Dict, List, Set, Optional, Any, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
 
+from ..utils.helpers import safe_unparse
+
 
 class SymbolType(Enum):
     """Type of symbol in the symbol table."""
@@ -194,7 +196,7 @@ class GlobalSymbolTable:
         
         for arg in node.args.args:
             param_name = arg.arg
-            type_ann = ast.unparse(arg.annotation) if arg.annotation else None
+            type_ann = safe_unparse(arg.annotation) if arg.annotation else None
             
             # Check if parameter name suggests PII
             is_pii = self._is_pii_parameter_name(param_name)
@@ -208,10 +210,10 @@ class GlobalSymbolTable:
             ))
         
         # Extract decorators
-        decorators = [ast.unparse(dec) for dec in node.decorator_list]
+        decorators = [safe_unparse(dec) for dec in node.decorator_list]
         
         # Extract return type
-        return_type = ast.unparse(node.returns) if node.returns else None
+        return_type = safe_unparse(node.returns) if node.returns else None
         
         # Check if function performs sensitive operations
         sensitive_ops = self._detect_sensitive_operations(node)
@@ -243,10 +245,10 @@ class GlobalSymbolTable:
     def _register_class(self, node: ast.ClassDef, module: str, file_path: Path) -> Optional[SymbolInfo]:
         """Register a class definition."""
         # Extract base classes
-        bases = [ast.unparse(base) for base in node.bases]
+        bases = [safe_unparse(base) for base in node.bases]
         
         # Extract decorators
-        decorators = [ast.unparse(dec) for dec in node.decorator_list]
+        decorators = [safe_unparse(dec) for dec in node.decorator_list]
         
         # Extract methods and attributes
         methods = {}
