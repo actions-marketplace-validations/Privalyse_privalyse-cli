@@ -22,7 +22,7 @@ Privalyse uses advanced **Cross-File Taint Tracking** to catch security vulnerab
 📚 [Quick Start](#quick-start) • 🔍 [What We Detect](DETECTION_RULES.md) • 🗺️ [Roadmap](#roadmap) • 🐛 [Report Bug](https://github.com/privalyse/privalyse-cli/issues) • ✨ [Request Feature](https://github.com/privalyse/privalyse-cli/issues)
 
 ```bash
-pip install privalyse
+pip install privalyse-cli
 privalyse
 # ✅ Done. Markdown report ready (scan_results.md).
 ```
@@ -32,7 +32,7 @@ privalyse
 ## Installation
 
 ```bash
-pip install privalyse
+pip install privalyse-cli
 ```
 
 ## Quick Start
@@ -73,7 +73,7 @@ See how Privalyse analyzes different types of projects:
 **No installation needed** - works in any Python project:
 
 ```bash
-pip install privalyse && privalyse --root . --out report.md && cat report.md | head -50
+pip install privalyse-cli && privalyse --root . --out report.md && cat report.md | head -50
 ```
 
 🎯 **Boom. Privacy report generated in 3 seconds.**
