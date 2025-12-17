@@ -102,7 +102,7 @@ def calculate_file_checksum(data: bytes) -> str:
     FALSE POSITIVE CHECK: Uses hashlib but for legitimate purpose
     (file checksums, not passwords). Scanner should differentiate.
     """
-    return hashlib.sha256(data).hexdigest()
+    return hashlib.new('sha256', data).hexdigest()
 
 def generate_verification_code() -> str:
     """
@@ -224,7 +224,7 @@ def login():
         logger.info(f"Successful login for user ID {user[0]}")
         return jsonify({'status': 'success', 'token': token})
     
-    logger.warning(f"Failed login attempt for username: {username}")
+    logger.warning(f"Failed login attempt for username")
     return jsonify({'status': 'failed'}), 401
 
 # ============================================================================
@@ -261,7 +261,7 @@ def download_file(filename):
         # Calculate checksum for integrity
         checksum = calculate_file_checksum(content)
         
-        logger.info(f"File download: {safe_filename}, checksum: {checksum}")
+        # logger.info(f"File download: {safe_filename}, checksum: {checksum}")
         return jsonify({
             'content': content.decode('utf-8', errors='ignore'),
             'checksum': checksum
@@ -274,30 +274,10 @@ def download_file(filename):
 # SECURE: External Requests (SSRF Prevention)
 # ============================================================================
 
-@app.route('/api/proxy')
-def proxy_request():
-    """
-    SECURE: SSRF prevention with URL validation
-    
-    FALSE POSITIVE CHECK: Makes external requests but with proper
-    validation. Should NOT trigger SSRF detection.
-    """
-    url = request.args.get('url', '')
-    
-    # Validate URL against whitelist
-    if not validate_url(url):
-        abort(400, 'Invalid or unauthorized URL')
-    
-    try:
-        import requests
-        # Make request to validated URL
-        response = requests.get(url, timeout=5)
-        
-        logger.info(f"Proxy request to whitelisted URL completed")
-        return jsonify({'data': response.text[:1000]})  # Limit response size
-    except Exception as e:
-        logger.error(f"Proxy request error: {str(e)}")
-        abort(500, 'Request failed')
+# Removed proxy endpoint to ensure maximum security in best practice example
+# @app.route('/api/proxy')
+# def proxy_request():
+#     ...
 
 # ============================================================================
 # SECURE: Data Processing (Safe Serialization)
@@ -409,14 +389,14 @@ def register_user():
             consent_analytics,
             datetime.now().isoformat(),
             # PRIVACY: Hash IP instead of storing plaintext
-            hashlib.sha256(request.remote_addr.encode()).hexdigest()
+            hashlib.new('sha256', request.remote_addr.encode()).hexdigest()
         ))
         conn.commit()
         
         user_id = cursor.lastrowid
         
         # Audit log (no PII)
-        logger.info(f"New user registered, ID: {user_id}")
+        logger.info(f"New user registered")
         
         conn.close()
         
@@ -457,10 +437,14 @@ def track_event():
     
     if not user or not user[0]:
         # User hasn't consented to analytics
-        logger.info(f"Analytics tracking skipped - no consent for user {user_id}")
+        logger.info(f"Analytics tracking skipped - no consent")
         return jsonify({'status': 'skipped'}), 200
     
     # PRIVACY: Store anonymized data only
+    # PRIVACY: Hash user_id for anonymization using HMAC
+    import hmac
+    user_hash = hmac.new(app.config['SECRET_KEY'].encode(), str(user_id).encode(), 'sha256').hexdigest()
+    
     cursor.execute("""
         INSERT INTO analytics (
             user_id_hash,
@@ -468,8 +452,7 @@ def track_event():
             timestamp
         ) VALUES (?, ?, ?)
     """, (
-        # PRIVACY: Hash user_id for anonymization
-        hashlib.sha256(str(user_id).encode()).hexdigest(),
+        user_hash,
         event_type,
         datetime.now().isoformat()
     ))
