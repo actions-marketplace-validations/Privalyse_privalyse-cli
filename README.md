@@ -19,7 +19,7 @@ Privalyse uses advanced **Cross-File Taint Tracking** to catch security vulnerab
 
 **🚀 Alpha Release** - We're building the privacy scanner that modern development deserves. Zero config, instant insights, built for speed - no excuses!
 
-📚 [Quick Start](QUICK_START_GUIDE.md) • 🔍 [What We Detect](DETECTION_RULES.md) • 🗺️ [Roadmap](FEATURES_AND_ROADMAP.md) • 🐛 [Report Bug](https://github.com/privalyse/privalyse-cli/issues) • ✨ [Request Feature](https://github.com/privalyse/privalyse-cli/issues)
+📚 [Quick Start](#quick-start) • 🔍 [What We Detect](DETECTION_RULES.md) • 🗺️ [Roadmap](#roadmap) • 🐛 [Report Bug](https://github.com/privalyse/privalyse-cli/issues) • ✨ [Request Feature](https://github.com/privalyse/privalyse-cli/issues)
 
 ```bash
 pip install privalyse
@@ -149,6 +149,7 @@ The Markdown results are perfect for reviewing AI-generated code before merging.
 **Next Up:**
 - 🔜 **Data Flow display**
 - 🔜 **Smarter detection** Improving the rules and patterns.
+- 🔜 **More Compliance Standards** (CCPA, HIPAA, etc.)
 - 🔜 **GitHub Actions integration** (CI/CD ready)
 
 - 🔜 **Enhanced test coverage**
