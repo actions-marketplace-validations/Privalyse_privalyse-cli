@@ -7,6 +7,7 @@ import logging
 from ..models.config import ScanConfig
 from ..models.finding import Finding
 from ..models.graph import SemanticDataFlowGraph, GraphNode, GraphEdge
+from ..models.taint import DataFlowEdge
 from ..analyzers.python_analyzer import PythonAnalyzer
 from ..analyzers.javascript_analyzer import JavaScriptAnalyzer
 from ..analyzers.cross_file_analyzer import CrossFileAnalyzer
@@ -185,62 +186,7 @@ class PrivalyseScanner:
                     )
                     
                     # ===== POPULATE GRAPH =====
-                    try:
-                        file_id = str(file_path.relative_to(self.config.root_path)) if self.config.root_path else file_path.name
-                    except ValueError:
-                        file_id = file_path.name
-                        
-                    self.graph.add_node(GraphNode(
-                        id=file_id,
-                        type="file",
-                        label=file_path.name,
-                        file_path=str(file_path)
-                    ))
-                    
-                    for flow in flows:
-                        # Determine node types
-                        source_type = "variable"
-                        source_label = flow.source_var
-                        if flow.source_var.startswith("SOURCE:"):
-                            source_type = "source"
-                            source_label = flow.source_var.replace("SOURCE:", "")
-                        elif flow.source_var in ("logging", "print"):
-                            source_type = "sink"
-                            
-                        target_type = "variable"
-                        target_label = flow.target_var
-                        if flow.target_var in ("logging", "print"):
-                            target_type = "sink"
-                        
-                        # Create nodes for source and target vars
-                        source_id = f"{file_id}:{flow.source_line}:{flow.source_var}"
-                        target_id = f"{file_id}:{flow.target_line}:{flow.target_var}"
-                        
-                        self.graph.add_node(GraphNode(
-                            id=source_id, 
-                            type=source_type, 
-                            label=source_label, 
-                            file_path=str(file_path), 
-                            line_number=flow.source_line,
-                            metadata={"context": flow.context}
-                        ))
-                        
-                        self.graph.add_node(GraphNode(
-                            id=target_id, 
-                            type=target_type, 
-                            label=target_label, 
-                            file_path=str(file_path), 
-                            line_number=flow.target_line,
-                            metadata={"context": flow.context}
-                        ))
-                        
-                        self.graph.add_edge(GraphEdge(
-                            source_id=source_id,
-                            target_id=target_id,
-                            type="data_flow",
-                            label=flow.flow_type,
-                            metadata={"transformation": flow.transformation}
-                        ))
+                    self._populate_graph(file_path, flows)
                     
                     if self.config.verbose:
                         logger.info(f"  → {len(findings)} findings in {file_path.name}")
@@ -291,6 +237,9 @@ class PrivalyseScanner:
                         file_path, code, consts, envmap
                     )
                     
+                    # ===== POPULATE GRAPH =====
+                    self._populate_graph(file_path, flows)
+                    
                     if self.config.verbose:
                         logger.info(f"  → {len(findings)} findings in {file_path.name}")
                     
@@ -317,6 +266,9 @@ class PrivalyseScanner:
             except Exception as e:
                 logger.warning(f"Error scanning {file_path}: {e}")
                 continue
+        
+        # Link network flows (JS -> Python)
+        self.graph.link_network_flows()
         
         logger.info(f"Initial scan completed: {len(all_findings)} findings")
         
@@ -539,3 +491,73 @@ class PrivalyseScanner:
             "findings_by_category": findings_by_category,
             "recommendation": get_score_recommendation(score, critical_count, high_count)
         }
+
+    def _populate_graph(self, file_path: Path, flows: List[DataFlowEdge]):
+        """Populate the semantic graph with flows from a file."""
+        try:
+            file_id = str(file_path.relative_to(self.config.root_path)) if self.config.root_path else file_path.name
+        except ValueError:
+            file_id = file_path.name
+            
+        self.graph.add_node(GraphNode(
+            id=file_id,
+            type="file",
+            label=file_path.name,
+            file_path=str(file_path)
+        ))
+        
+        for flow in flows:
+            # Determine node types
+            source_type = "variable"
+            source_label = flow.source_var
+            if flow.source_var.startswith("SOURCE:"):
+                source_type = "source"
+                source_label = flow.source_var.replace("SOURCE:", "")
+            elif flow.source_var in ("logging", "print"):
+                source_type = "sink"
+                
+            target_type = "variable"
+            target_label = flow.target_var
+            if flow.target_var in ("logging", "print") or "axios" in flow.target_var or "fetch" in flow.target_var:
+                target_type = "sink"
+            
+            # Create nodes for source and target vars
+            source_id = f"{file_id}:{flow.source_line}:{flow.source_var}"
+            target_id = f"{file_id}:{flow.target_line}:{flow.target_var}"
+            
+            # Extract metadata from context
+            node_metadata = {"context": flow.context}
+            if flow.context:
+                if "URL: " in flow.context:
+                    node_metadata['url'] = flow.context.split("URL: ")[1].strip()
+                if "Route: " in flow.context:
+                    import re
+                    route_match = re.search(r"Route: ([^)]+)", flow.context)
+                    if route_match:
+                        node_metadata['route'] = route_match.group(1)
+            
+            self.graph.add_node(GraphNode(
+                id=source_id, 
+                type=source_type, 
+                label=source_label, 
+                file_path=str(file_path), 
+                line_number=flow.source_line,
+                metadata=node_metadata
+            ))
+            
+            self.graph.add_node(GraphNode(
+                id=target_id, 
+                type=target_type, 
+                label=target_label, 
+                file_path=str(file_path), 
+                line_number=flow.target_line,
+                metadata=node_metadata
+            ))
+            
+            self.graph.add_edge(GraphEdge(
+                source_id=source_id,
+                target_id=target_id,
+                type="data_flow",
+                label=flow.flow_type,
+                metadata={"transformation": flow.transformation}
+            ))
