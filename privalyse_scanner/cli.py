@@ -15,6 +15,7 @@ from pathlib import Path
 from privalyse_scanner import PrivalyseScanner
 from privalyse_scanner.models.config import ScanConfig
 from privalyse_scanner.exporters import MarkdownExporter, HTMLExporter
+from privalyse_scanner.utils.visualizer import FlowVisualizer
 
 
 def setup_logging(debug: bool = False, quiet: bool = False):
@@ -230,6 +231,10 @@ Examples:
         if compliance.get('high_findings'):
             print(f"🟠 High: {compliance['high_findings']}")
         print(f"📄 Report: {output_path}")
+        
+        # Visual Summary
+        FlowVisualizer.print_summary(results)
+        
         logger.info("✅ Scan complete")
     
     return 0 if score >= 70 else 1

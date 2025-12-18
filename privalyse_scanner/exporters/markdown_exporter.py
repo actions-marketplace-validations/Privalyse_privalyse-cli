@@ -378,22 +378,28 @@ user.password = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
 Critical data paths detected in your application:
 """]
         
-        # Group flows by risk
-        high_risk = [f for f in flows if f.get('risk_level') in ['critical', 'high']]
+        # Convert DataFlowEdge objects to dicts if necessary
+        processed_flows = []
+        for f in flows:
+            if hasattr(f, 'to_dict'):
+                processed_flows.append(f.to_dict())
+            elif hasattr(f, '__dict__'):
+                processed_flows.append(f.__dict__)
+            else:
+                processed_flows.append(f)
         
-        if high_risk:
-            section.append("### High-Risk Data Flows\n")
-            for flow in high_risk[:5]:
-                source = flow.get('source', 'Unknown')
-                sink = flow.get('sink', 'Unknown')
-                pii = ', '.join(flow.get('pii_types', []))
-                risk = flow.get('risk_level', 'unknown')
+        # Group flows by risk (simplified logic as risk_level might not be present in raw edges)
+        # For now, just list flows that involve sinks
+        sink_flows = [f for f in processed_flows if f.get('flow_type') == 'sink']
+        
+        if sink_flows:
+            section.append("### Detected Sinks\n")
+            for flow in sink_flows[:10]:
+                source = flow.get('source_var', 'Unknown')
+                target = flow.get('target_var', 'Unknown')
+                line = flow.get('target_line', '?')
                 
-                section.append(f"```")
-                section.append(f"{source} → {sink}")
-                section.append(f"PII: {pii}")
-                section.append(f"Risk: {risk.upper()}")
-                section.append(f"```\n")
+                section.append(f"- **{source}** → **{target}** (Line {line})")
         
         return '\n'.join(section)
     
