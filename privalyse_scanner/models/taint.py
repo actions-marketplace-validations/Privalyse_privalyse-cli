@@ -15,6 +15,8 @@ class TaintInfo:
     taint_source: Optional[str] = None  # Where did the taint come from?
     confidence: float = 1.0
     transformations: List[str] = field(default_factory=list)
+    context: Optional[str] = None  # Context where taint was introduced (e.g. function name)
+    flow_path: List[str] = field(default_factory=list)  # Sequence of nodes/vars in the flow
 
 
 @dataclass
@@ -26,6 +28,7 @@ class DataFlowEdge:
     target_line: int
     flow_type: str  # "assignment", "attribute", "call", "return"
     transformation: Optional[str] = None
+    context: Optional[str] = None  # Context of the flow (e.g. function name)
 
 
 class TaintTracker:
@@ -155,7 +158,8 @@ class TaintTracker:
         return pii_types or ['unknown']
     
     def mark_tainted(self, var_name: str, pii_types: List[str], source_line: int,
-                    source_node: str = "unknown", taint_source: Optional[str] = None):
+                    source_node: str = "unknown", taint_source: Optional[str] = None,
+                    context: Optional[str] = None):
         """Mark a variable as tainted with PII"""
         if var_name not in self.tainted_vars:
             self.tainted_vars[var_name] = TaintInfo(
@@ -163,14 +167,17 @@ class TaintTracker:
                 pii_types=pii_types,
                 source_line=source_line,
                 source_node=source_node,
-                taint_source=taint_source
+                taint_source=taint_source,
+                context=context
             )
         else:
             # Update with new PII types
             existing = self.tainted_vars[var_name]
             existing.pii_types = list(set(existing.pii_types + pii_types))
+            if existing.context is None and context:
+                existing.context = context
     
-    def propagate_through_assignment(self, target: str, source: ast.expr, line: int):
+    def propagate_through_assignment(self, target: str, source: ast.expr, line: int, context: Optional[str] = None):
         """Propagate taint through assignment: target = source"""
         
         # Case 1: Direct assignment (x = y)
@@ -182,14 +189,16 @@ class TaintTracker:
                     source_taint.pii_types,
                     line,
                     "assignment",
-                    taint_source=source.id
+                    taint_source=source.id,
+                    context=context
                 )
                 self.data_flow_edges.append(DataFlowEdge(
                     source_var=source.id,
                     target_var=target,
                     source_line=source_taint.source_line,
                     target_line=line,
-                    flow_type="assignment"
+                    flow_type="assignment",
+                    context=context
                 ))
         
         # Case 2: Attribute access (x = obj.email)
@@ -207,7 +216,8 @@ class TaintTracker:
                     pii_types,
                     line,
                     "attribute_access",
-                    taint_source=f"{base_var}.{attr_name}" if base_var else attr_name
+                    taint_source=f"{base_var}.{attr_name}" if base_var else attr_name,
+                    context=context
                 )
                 
                 if base_var and base_var in self.tainted_vars:
@@ -217,7 +227,8 @@ class TaintTracker:
                         source_line=self.tainted_vars[base_var].source_line,
                         target_line=line,
                         flow_type="attribute",
-                        transformation=f"extract .{attr_name}"
+                        transformation=f"extract .{attr_name}",
+                        context=context
                     ))
         
         # Case 3: Subscript (x = dict['email'])
@@ -235,7 +246,7 @@ class TaintTracker:
                     base_taint = self.get_taint_info(source.value)
                     pii_types = base_taint.pii_types if base_taint else ['unknown']
                 
-                self.mark_tainted(target, pii_types, line, "subscript")
+                self.mark_tainted(target, pii_types, line, "subscript", context=context)
         
         # Case 4: Function call (x = get_user())
         elif isinstance(source, ast.Call):
@@ -255,7 +266,8 @@ class TaintTracker:
                     list(set(all_pii_types)),
                     line,
                     "function_call",
-                    taint_source="function_result"
+                    taint_source="function_result",
+                    context=context
                 )
     
     def track_function_call(self, call_node: ast.Call, line: int) -> List[str]:

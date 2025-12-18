@@ -59,6 +59,11 @@ class Finding:
     url: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
     
+    # New fields for Semantic Data Flow Graph
+    source_node: Optional[str] = None
+    sink_node: Optional[str] = None
+    flow_path: List[str] = field(default_factory=list)
+    
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
         result = {
@@ -81,5 +86,13 @@ class Finding:
             result["url"] = self.url
         if self.metadata:
             result["metadata"] = self.metadata
+            
+        # Add graph fields
+        if self.source_node:
+            result["source_node"] = self.source_node
+        if self.sink_node:
+            result["sink_node"] = self.sink_node
+        if self.flow_path:
+            result["flow_path"] = self.flow_path
         
         return result

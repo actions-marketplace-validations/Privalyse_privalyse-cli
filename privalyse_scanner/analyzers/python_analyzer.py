@@ -179,6 +179,22 @@ class PythonAnalyzer(BaseAnalyzer):
         class TaintAwareVisitor(ast.NodeVisitor):
             """AST visitor that tracks tainted variables"""
             
+            def __init__(self):
+                self.current_function = None
+                super().__init__()
+
+            def visit_FunctionDef(self, node: ast.FunctionDef):
+                old_function = self.current_function
+                self.current_function = node.name
+                self.generic_visit(node)
+                self.current_function = old_function
+
+            def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef):
+                old_function = self.current_function
+                self.current_function = node.name
+                self.generic_visit(node)
+                self.current_function = old_function
+            
             def visit_Assign(self, node: ast.Assign):
                 """Track variable assignments for taint propagation"""
                 for target in node.targets:
@@ -204,7 +220,8 @@ class PythonAnalyzer(BaseAnalyzer):
                                             pii_types=pii_types,
                                             source_line=node.lineno,
                                             source_node='request.args.get',
-                                            taint_source=f"request parameter '{field_name}'"
+                                            taint_source=f"request parameter '{field_name}'",
+                                            context=self.current_function
                                         )
                         
                         # ===== NEW: Hardcoded Secret Detection =====
@@ -239,7 +256,8 @@ class PythonAnalyzer(BaseAnalyzer):
                                 # Also mark as tainted for backward tracking
                                 taint_tracker.mark_tainted(
                                     target_name, [secret_type, 'credentials'], node.lineno,
-                                    "hardcoded_secret", f"{target_name}=***"
+                                    "hardcoded_secret", f"{target_name}=***",
+                                    context=self.current_function
                                 )
                         
                         # Check if assignment source contains PII
@@ -260,7 +278,8 @@ class PythonAnalyzer(BaseAnalyzer):
                                         if taint_info:
                                             taint_tracker.mark_tainted(
                                                 target_name, taint_info.pii_types, node.lineno,
-                                                "db_result_extraction", f"{base_var}.{attr_name}()"
+                                                "db_result_extraction", f"{base_var}.{attr_name}()",
+                                                context=self.current_function
                                             )
                             
                             # Phase 3.4: Transitive taint propagation from base object
@@ -276,7 +295,8 @@ class PythonAnalyzer(BaseAnalyzer):
                                         combined_pii = list(set(taint_info.pii_types + attr_pii_types))
                                         taint_tracker.mark_tainted(
                                             target_name, combined_pii, node.lineno,
-                                            "attribute_propagation", f"{base_var}.{attr_name}"
+                                            "attribute_propagation", f"{base_var}.{attr_name}",
+                                            context=self.current_function
                                         )
                             
                             # Fallback: PII inference from attribute name only - REMOVED to reduce false positives
@@ -287,7 +307,7 @@ class PythonAnalyzer(BaseAnalyzer):
                         
                         elif isinstance(node.value, ast.Name):
                             taint_tracker.propagate_through_assignment(
-                                target_name, node.value, node.lineno
+                                target_name, node.value, node.lineno, context=self.current_function
                             )
                         
                         elif isinstance(node.value, ast.Subscript):
@@ -427,7 +447,8 @@ class PythonAnalyzer(BaseAnalyzer):
                             list(cross_taint.pii_types),
                             node.lineno,
                             "cross_file_call",
-                            f"Imported from {list(cross_taint.sources)}"
+                            f"Imported from {list(cross_taint.sources)}",
+                            context=self.current_function
                         )
                         # Also taint any assignment target
                         parent = getattr(node, '_parent', None)
@@ -439,7 +460,8 @@ class PythonAnalyzer(BaseAnalyzer):
                                         list(cross_taint.pii_types),
                                         node.lineno,
                                         "cross_file_assignment",
-                                        f"From {list(cross_taint.sources)}"
+                                        f"Imported from {list(cross_taint.sources)}",
+                                        context=self.current_function
                                     )
                 
                 # ===== NEW: Backward Taint Tracking for Keyword Arguments =====
