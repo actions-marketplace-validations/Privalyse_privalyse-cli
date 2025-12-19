@@ -489,6 +489,22 @@ class JavaScriptAnalyzer(BaseAnalyzer):
                         if rhs_is_source:
                             source_desc += f" from '{rhs_expr}'"
                         self.taint_tracker.mark_tainted(var_name, pii_types, source_desc)
+                        
+                        # Capture route for graph linking if this is an Express handler
+                        # Heuristic: look backwards for app.post/get/put/delete
+                        if rhs_is_source:
+                            route = None
+                            # Look back up to 20 lines
+                            for j in range(max(0, i-20), i):
+                                route_match = re.search(r"app\.(post|get|put|delete)\s*\(\s*['\"]([^'\"]+)['\"]", lines[j])
+                                if route_match:
+                                    route = route_match.group(2)
+                                    break
+                            
+                            if route:
+                                # Add metadata to the taint source for graph linking
+                                if var_name in self.taint_tracker.tainted_vars:
+                                    self.taint_tracker.tainted_vars[var_name]['route'] = route
 
             # 3. Function Args
             if match := func_arg_pattern.search(line_stripped):

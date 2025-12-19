@@ -109,11 +109,18 @@ class SemanticDataFlowGraph:
                 if url:
                     network_sinks.append((node, url))
 
-        # 2. Find all network sources (Python)
+        # 2. Find all network sources (Python & JS/Express)
         network_sources = []
         for node in self.nodes.values():
+            # Python/Flask
             if node.type == 'source' and 'request' in node.label:
-                # Check metadata for Route
+                route = node.metadata.get('route')
+                if route:
+                    network_sources.append((node, route))
+            # JS/Express
+            elif node.type == 'source' and ('req.body' in node.label or 'req.query' in node.label or 'req.params' in node.label):
+                # For Express, we might not have the route directly on the req.body node
+                # But we might have stored it in metadata during analysis
                 route = node.metadata.get('route')
                 if route:
                     network_sources.append((node, route))
@@ -121,9 +128,14 @@ class SemanticDataFlowGraph:
         # 3. Match and Link
         for sink_node, sink_url in network_sinks:
             for source_node, source_route in network_sources:
+                # Normalize paths for comparison
+                # Remove http://domain.com prefix from sink if present
+                clean_sink = sink_url
+                if '://' in clean_sink:
+                    clean_sink = '/' + clean_sink.split('://', 1)[1].split('/', 1)[1] if '/' in clean_sink.split('://', 1)[1] else '/'
+                
                 # Simple matching: check if route is in URL or vice versa
-                # e.g. sink_url='/api/signup', source_route='/api/signup'
-                if sink_url == source_route or sink_url.endswith(source_route):
+                if clean_sink == source_route or clean_sink.endswith(source_route) or source_route.endswith(clean_sink):
                     # Create a bridge edge
                     self.add_edge(GraphEdge(
                         source_id=sink_node.id,

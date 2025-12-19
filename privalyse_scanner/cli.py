@@ -190,12 +190,12 @@ Examples:
     
     # Auto-detect format from extension if not explicitly specified
     output_format = args.format
-    if output_format == 'json' and args.out != 'scan_results.json':
-        # If user changed output path but kept default format, try to infer
-        if str(output_path).endswith(('.md', '.markdown')):
-            output_format = 'markdown'
-        elif str(output_path).endswith('.html'):
+    if output_format == 'md':
+        # If default 'md' is used but extension is .html, switch to html
+        if str(output_path).endswith('.html'):
             output_format = 'html'
+        elif str(output_path).endswith('.json'):
+            output_format = 'json'
     
     if output_format in ['markdown', 'md']:
         # Generate markdown report

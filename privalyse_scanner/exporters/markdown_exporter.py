@@ -45,6 +45,9 @@ class MarkdownExporter:
         # Critical Issues (Top Priority!)
         sections.append(self._generate_critical_section(scan_result))
         
+        # Top Data Flow Stories (New!)
+        sections.append(self._generate_top_flows_section(scan_result))
+        
         # Findings by Severity
         sections.append(self._generate_findings_by_severity(scan_result))
         
@@ -67,6 +70,34 @@ class MarkdownExporter:
         
         return '\n\n'.join(sections)
     
+    def _generate_top_flows_section(self, scan_result: Dict[str, Any]) -> str:
+        """Generate section for top data flow stories"""
+        findings = scan_result.get('findings', [])
+        
+        # Filter for findings with flow paths
+        flow_findings = [f for f in findings if f.get('flow_path') and len(f.get('flow_path')) > 1]
+        
+        # Sort by severity (Critical > High > Medium)
+        severity_order = {'critical': 0, 'high': 1, 'medium': 2, 'low': 3, 'info': 4}
+        flow_findings.sort(key=lambda x: severity_order.get(x.get('severity', 'info'), 5))
+        
+        if not flow_findings:
+            return ""
+            
+        section = ["""## 🌊 Top Data Flow Stories
+
+These findings show the complete path of sensitive data from source to sink.
+"""]
+        
+        # Show top 5 flows
+        for i, finding in enumerate(flow_findings[:5], 1):
+            section.append(self._format_finding_detailed(finding, i))
+            
+        if len(flow_findings) > 5:
+            section.append(f"\n*... and {len(flow_findings) - 5} more data flow stories.*")
+            
+        return '\n'.join(section)
+
     def _generate_header(self, scan_result: Dict[str, Any]) -> str:
         """Generate report header"""
         metadata = scan_result.get('meta', {})
@@ -184,6 +215,14 @@ Found **{len(critical)}** critical privacy/security issues that need immediate a
             pii_list = ', '.join(pii_types)
             pii_section = f"**🔍 PII Detected:** {pii_list}"
         
+        # Data Flow Visualization (Mermaid)
+        flow_section = ""
+        flow_path = finding.get('flow_path', [])
+        if flow_path and len(flow_path) > 1:
+            flow_diagram = self._generate_finding_flow_diagram(finding)
+            if flow_diagram:
+                flow_section = f"**🌊 Data Flow:**\n\n{flow_diagram}"
+
         # Code snippet
         code_section = "**💻 Code:**"
         if snippet:
@@ -203,9 +242,49 @@ Found **{len(critical)}** critical privacy/security issues that need immediate a
         parts = [header, location, issue]
         if pii_section:
             parts.append(pii_section)
+        if flow_section:
+            parts.append(flow_section)
         parts.extend([code_section, risk_section, fix_section])
         
         return '\n\n'.join(parts) + "\n\n---\n"
+
+    def _generate_finding_flow_diagram(self, finding: Dict[str, Any]) -> str:
+        """Generate a mini Mermaid diagram for a specific finding"""
+        flow_path = finding.get('flow_path', [])
+        if not flow_path:
+            return ""
+            
+        lines = ["```mermaid", "graph TD"]
+        
+        # Styles
+        lines.append("  classDef source fill:#e6fffa,stroke:#00b8d9,stroke-width:2px;")
+        lines.append("  classDef step fill:#f4f5f7,stroke:#505f79,stroke-width:1px;")
+        lines.append("  classDef sink fill:#ffebe6,stroke:#ff5630,stroke-width:2px;")
+        
+        # Nodes
+        for i, step in enumerate(flow_path):
+            node_id = f"step_{i}"
+            label = str(step).replace('"', "'")
+            
+            # Determine type
+            if i == 0:
+                css_class = "source"
+                shape_open, shape_close = "((", "))"
+            elif i == len(flow_path) - 1:
+                css_class = "sink"
+                shape_open, shape_close = "{{", "}}"
+            else:
+                css_class = "step"
+                shape_open, shape_close = "[", "]"
+                
+            lines.append(f'  {node_id}{shape_open}"{label}"{shape_close}::: {css_class}')
+            
+        # Edges
+        for i in range(len(flow_path) - 1):
+            lines.append(f"  step_{i} --> step_{i+1}")
+            
+        lines.append("```")
+        return "\n".join(lines)
     
     def _detect_language(self, file_path: str) -> str:
         """Detect programming language from file extension"""

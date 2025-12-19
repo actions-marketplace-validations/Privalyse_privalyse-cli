@@ -17,7 +17,7 @@ from ..analyzers.security_analyzer import SecurityAnalyzer
 from ..analyzers.infrastructure_analyzer import InfrastructureAnalyzer
 from .file_iterator import FileIterator
 from .import_resolver import ImportResolver
-from .symbol_table import GlobalSymbolTable
+from .symbol_table import GlobalSymbolTable, SymbolType
 from ..utils.compliance_mapper import map_finding_to_compliance
 from .score_recommendation import get_score_recommendation
 
@@ -270,6 +270,9 @@ class PrivalyseScanner:
         # Link network flows (JS -> Python)
         self.graph.link_network_flows()
         
+        # Populate structure graph (Functions, Classes)
+        self._populate_structure_graph()
+        
         logger.info(f"Initial scan completed: {len(all_findings)} findings")
         
         # Propagate taint across modules
@@ -491,6 +494,63 @@ class PrivalyseScanner:
             "findings_by_category": findings_by_category,
             "recommendation": get_score_recommendation(score, critical_count, high_count)
         }
+
+    def _populate_structure_graph(self):
+        """Populate the graph with structural elements (functions, classes) from the symbol table."""
+        logger.info("Populating graph with code structure...")
+        
+        # Add nodes for all symbols
+        for symbol_name, symbol_list in self.symbol_table.symbols.items():
+            for symbol in symbol_list:
+                # Determine file ID (should match what _populate_graph uses)
+                try:
+                    file_id = str(symbol.file_path.relative_to(self.config.root_path)) if self.config.root_path else symbol.file_path.name
+                except ValueError:
+                    file_id = symbol.file_path.name
+                
+                # Create node ID
+                node_id = f"{file_id}:{symbol.location[0]}:{symbol.name}"
+                
+                # Determine type and icon
+                node_type = "function"
+                if symbol.symbol_type == SymbolType.CLASS:
+                    node_type = "class"
+                elif symbol.symbol_type == SymbolType.VARIABLE:
+                    node_type = "variable"
+                
+                # Add node
+                self.graph.add_node(GraphNode(
+                    id=node_id,
+                    type=node_type,
+                    label=symbol.name,
+                    file_path=str(symbol.file_path),
+                    line_number=symbol.location[0],
+                    metadata={
+                        "module": symbol.module,
+                        "pii_related": bool(symbol.function_signature and symbol.function_signature.returns_pii)
+                    }
+                ))
+                
+                # Link to file node
+                # Note: File node should already exist from _populate_graph, but if not, we might need to add it.
+                # _populate_graph adds file node with ID = file_id
+                
+                # Check if file node exists, if not add it
+                if file_id not in self.graph.nodes:
+                    self.graph.add_node(GraphNode(
+                        id=file_id,
+                        type="file",
+                        label=symbol.file_path.name,
+                        file_path=str(symbol.file_path)
+                    ))
+                
+                # Add containment edge (File -> Symbol)
+                self.graph.add_edge(GraphEdge(
+                    source_id=file_id,
+                    target_id=node_id,
+                    type="contains",
+                    label="defines"
+                ))
 
     def _populate_graph(self, file_path: Path, flows: List[DataFlowEdge]):
         """Populate the semantic graph with flows from a file."""
