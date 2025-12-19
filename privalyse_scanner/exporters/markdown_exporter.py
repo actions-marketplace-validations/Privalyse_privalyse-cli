@@ -263,8 +263,13 @@ Found **{len(critical)}** critical privacy/security issues that need immediate a
         
         # Nodes
         for i, step in enumerate(flow_path):
-            node_id = f"step_{i}"
             label = str(step).replace('"', "'")
+            
+            # Skip "Unknown Source" if it's the first step
+            if i == 0 and label == "Unknown Source":
+                continue
+                
+            node_id = f"step_{i}"
             
             # Determine type
             if i == 0:
@@ -280,8 +285,13 @@ Found **{len(critical)}** critical privacy/security issues that need immediate a
             lines.append(f'  {node_id}{shape_open}"{label}"{shape_close}::: {css_class}')
             
         # Edges
-        for i in range(len(flow_path) - 1):
-            lines.append(f"  step_{i} --> step_{i+1}")
+        # We need to track valid nodes to connect them correctly
+        valid_indices = [i for i, step in enumerate(flow_path) if not (i == 0 and str(step) == "Unknown Source")]
+        
+        for i in range(len(valid_indices) - 1):
+            curr_idx = valid_indices[i]
+            next_idx = valid_indices[i+1]
+            lines.append(f"  step_{curr_idx} --> step_{next_idx}")
             
         lines.append("```")
         return "\n".join(lines)
@@ -487,7 +497,7 @@ Critical data paths detected in your application:
         return '\n'.join(section)
 
     def _generate_mermaid_graph(self, scan_result: Dict[str, Any]) -> str:
-        """Generate Mermaid.js graph visualization"""
+        """Generate Mermaid.js graph visualization with subgraphs"""
         graph_data = scan_result.get('semantic_graph', {})
         nodes = graph_data.get('nodes', [])
         edges = graph_data.get('edges', [])
@@ -497,43 +507,87 @@ Critical data paths detected in your application:
             
         lines = ["## 🗺️ Visual Data Flow Graph", "", "```mermaid", "graph LR"]
         
-        # Add nodes with styling
+        # Styles
         lines.append("  %% Styles")
-        lines.append("  classDef source fill:#ffcccc,stroke:#ff0000,stroke-width:2px;")
-        lines.append("  classDef sink fill:#ccccff,stroke:#0000ff,stroke-width:2px;")
-        lines.append("  classDef variable fill:#eeeeee,stroke:#333333;")
-        lines.append("  classDef file fill:#ffffff,stroke:#999999,stroke-dasharray: 5 5;")
+        lines.append("  classDef input fill:#eff6ff,stroke:#3b82f6,stroke-width:2px,color:#1e293b;")
+        lines.append("  classDef processing fill:#faf5ff,stroke:#a855f7,stroke-width:2px,color:#1e293b;")
+        lines.append("  classDef sink fill:#fee2e2,stroke:#ef4444,stroke-width:2px,color:#1e293b;")
+        lines.append("  classDef external fill:#fef3c7,stroke:#f59e0b,stroke-width:2px,color:#1e293b;")
+        lines.append("  classDef default fill:#ffffff,stroke:#94a3b8,stroke-width:1px,color:#1e293b;")
+
+        # Categorize Nodes
+        categories = {
+            'input': [],
+            'processing': [],
+            'sink': [],
+            'external': []
+        }
         
-        # Map original IDs to clean IDs to avoid syntax errors
+        # Map original IDs to clean IDs
         id_map = {n['id']: f"node_{i}" for i, n in enumerate(nodes)}
         
-        # Add Nodes
+        # Helper to categorize
+        def get_category(node):
+            ntype = node.get('type', 'unknown')
+            label = node.get('label', '').lower()
+            path = str(node.get('file_path', '')).lower()
+            
+            if ntype == 'sink':
+                return 'sink'
+            
+            if any(x in path for x in ['frontend', 'client', 'ui', 'web', 'view', 'template', 'html', 'form', 'page', 'screen', 'cli', 'input']):
+                return 'input'
+                
+            if any(x in path for x in ['external', 'thirdparty', 'lib', 'requests', 'node_modules']):
+                return 'external'
+                
+            return 'processing'
+
+        # Sort nodes into categories
         for node in nodes:
-            clean_node_id = id_map.get(node['id'])
-            if not clean_node_id: continue
+            cat = get_category(node)
+            categories[cat].append(node)
             
-            label = node['label'].replace('"', "'")
-            node_type = node['type']
+        # Generate Subgraphs
+        # 1. Input
+        if categories['input']:
+            lines.append("  subgraph Input_Frontend [1. Input / Frontend]")
+            lines.append("    direction TB")
+            for node in categories['input']:
+                nid = id_map[node['id']]
+                label = node['label'].replace('"', "'")
+                lines.append(f'    {nid}("{label}"):::input')
+            lines.append("  end")
             
-            # Shape based on type
-            shape_open = "["
-            shape_close = "]"
-            if node_type == 'file':
-                shape_open = "(("
-                shape_close = "))"
-            elif node_type == 'sink':
-                shape_open = "{{"
-                shape_close = "}}"
-            elif node_type == 'source':
-                shape_open = "(("
-                shape_close = "))"
-            
-            # Apply class
-            css_class = "variable"
-            if node_type in ['source', 'sink', 'file']:
-                css_class = node_type
-            
-            lines.append(f'  {clean_node_id}{shape_open}"{label}"{shape_close}::: {css_class}')
+        # 2. Processing
+        if categories['processing']:
+            lines.append("  subgraph Processing_Backend [2. Processing / Backend]")
+            lines.append("    direction TB")
+            for node in categories['processing']:
+                nid = id_map[node['id']]
+                label = node['label'].replace('"', "'")
+                lines.append(f'    {nid}["{label}"]:::processing')
+            lines.append("  end")
+
+        # 3. External
+        if categories['external']:
+            lines.append("  subgraph External_Services [3. External Services]")
+            lines.append("    direction TB")
+            for node in categories['external']:
+                nid = id_map[node['id']]
+                label = node['label'].replace('"', "'")
+                lines.append(f'    {nid}{{"{label}"}}:::external')
+            lines.append("  end")
+
+        # 4. Sinks
+        if categories['sink']:
+            lines.append("  subgraph Data_Sinks [4. Data Sinks]")
+            lines.append("    direction TB")
+            for node in categories['sink']:
+                nid = id_map[node['id']]
+                label = node['label'].replace('"', "'")
+                lines.append(f'    {nid}[("{label}")]:::sink')
+            lines.append("  end")
             
         # Add Edges
         for edge in edges:
@@ -547,7 +601,6 @@ Critical data paths detected in your application:
                 if edge['type'] == 'network_flow':
                     arrow = "-.->|HTTP|"
                 elif label:
-                    # Sanitize label
                     label = label.replace('"', "'")
                     arrow = f"-->|{label}|"
                 
