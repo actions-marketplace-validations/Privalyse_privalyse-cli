@@ -571,13 +571,23 @@ class JavaScriptAnalyzer(BaseAnalyzer):
                             
                         taint_info = self.taint_tracker.get_taint(word)
                         
+                        # Build context with URL and Route info
+                        context_parts = []
+                        if current_sink_url:
+                            context_parts.append(f"URL: {current_sink_url}")
+                        
+                        if taint_info and 'route' in taint_info:
+                            context_parts.append(f"Route: {taint_info['route']}")
+                            
+                        context_str = ", ".join(context_parts) if context_parts else None
+                        
                         # Add Data Flow Edge
                         self.taint_tracker.add_edge(
                             source=word,
                             target=current_sink,
                             line=line_num,
                             flow_type="sink",
-                            context=f"URL: {current_sink_url}" if current_sink_url else None
+                            context=context_str
                         )
                         
                         # Determine rule
@@ -644,6 +654,19 @@ class JavaScriptAnalyzer(BaseAnalyzer):
                     # Mark as tainted for subsequent analysis
                     full_var = f"req.{source_type}.{field_name}"
                     self.taint_tracker.mark_tainted(full_var, pii_types, f"Express request {source_type}")
+                    
+                    # Capture route for graph linking
+                    route = None
+                    # Look back up to 20 lines
+                    for j in range(max(0, i-20), i):
+                        route_match = re.search(r"app\.(post|get|put|delete)\s*\(\s*['\"]([^'\"]+)['\"]", lines[j])
+                        if route_match:
+                            route = route_match.group(2)
+                            break
+                    
+                    if route:
+                        if full_var in self.taint_tracker.tainted_vars:
+                            self.taint_tracker.tainted_vars[full_var]['route'] = route
                     
                     # Also create a finding for "Unvalidated PII Input"
                     finding = Finding(
@@ -1035,6 +1058,15 @@ class JavaScriptAnalyzer(BaseAnalyzer):
                     "file": str(file_path),
                     "line": line_num
                 })
+                
+                # Add to taint tracker for graph visualization
+                self.taint_tracker.add_edge(
+                    source="API_CALL",
+                    target=f"fetch",
+                    line=line_num,
+                    flow_type="sink",
+                    context=f"URL: {url}"
+                )
             
             # Check for axios calls
             axios_match = axios_pattern.search(line)
@@ -1062,6 +1094,24 @@ class JavaScriptAnalyzer(BaseAnalyzer):
                         )
                     )
                     findings.append(finding)
+                
+                data_flows.append({
+                    "type": "network",
+                    "library": "axios",
+                    "url": url,
+                    "secure": is_secure,
+                    "file": str(file_path),
+                    "line": line_num
+                })
+
+                # Add to taint tracker for graph visualization
+                self.taint_tracker.add_edge(
+                    source="API_CALL",
+                    target=f"axios.{method.lower()}",
+                    line=line_num,
+                    flow_type="sink",
+                    context=f"URL: {url}"
+                )
                 
                 data_flows.append({
                     "type": "network",
