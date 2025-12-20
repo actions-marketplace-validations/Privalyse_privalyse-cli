@@ -497,116 +497,207 @@ Critical data paths detected in your application:
         return '\n'.join(section)
 
     def _generate_mermaid_graph(self, scan_result: Dict[str, Any]) -> str:
-        """Generate Mermaid.js graph visualization with subgraphs"""
+        """Generate horizontal layered architecture graph with risk-based coloring"""
         graph_data = scan_result.get('semantic_graph', {})
         nodes = graph_data.get('nodes', [])
         edges = graph_data.get('edges', [])
+        findings = scan_result.get('findings', [])
         
         if not nodes or not edges:
             return ""
-            
-        lines = ["## 🗺️ Visual Data Flow Graph", "", "```mermaid", "graph LR"]
         
-        # Styles
+        # Build severity map for sinks (finding severity -> sink coloring)
+        sink_severity_map = {}  # sink_node_id -> highest_severity
+        severity_order = {'critical': 4, 'high': 3, 'medium': 2, 'low': 1, 'info': 0}
+        
+        for finding in findings:
+            sink_node = finding.get('sink_node')
+            if sink_node:
+                current = sink_severity_map.get(sink_node)
+                new_severity = finding.get('severity', 'info')
+                
+                if not current or severity_order.get(new_severity, 0) > severity_order.get(current, 0):
+                    sink_severity_map[sink_node] = new_severity
+        
+        lines = ["## 🗺️ Data Flow Architecture", "", 
+                 "> **Note:** This diagram uses [Mermaid](https://mermaid.js.org/). View in GitHub, VS Code Preview (Ctrl+Shift+V), or install the [Markdown Preview Mermaid Support](https://marketplace.visualstudio.com/items?itemName=bierner.markdown-mermaid) extension.",
+                 "", "```mermaid", "flowchart LR"]
+        
+        # Advanced Styles - Risk-based coloring
         lines.append("  %% Styles")
-        lines.append("  classDef input fill:#eff6ff,stroke:#3b82f6,stroke-width:2px,color:#1e293b;")
-        lines.append("  classDef processing fill:#faf5ff,stroke:#a855f7,stroke-width:2px,color:#1e293b;")
-        lines.append("  classDef sink fill:#fee2e2,stroke:#ef4444,stroke-width:2px,color:#1e293b;")
-        lines.append("  classDef external fill:#fef3c7,stroke:#f59e0b,stroke-width:2px,color:#1e293b;")
-        lines.append("  classDef default fill:#ffffff,stroke:#94a3b8,stroke-width:1px,color:#1e293b;")
-
-        # Categorize Nodes
-        categories = {
-            'input': [],
-            'processing': [],
-            'sink': [],
-            'external': []
-        }
+        lines.append("  classDef frontend fill:#dbeafe,stroke:#3b82f6,stroke-width:2px,color:#1e3a8a")
+        lines.append("  classDef backend fill:#e9d5ff,stroke:#9333ea,stroke-width:2px,color:#581c87")
+        lines.append("  classDef storage fill:#fef3c7,stroke:#f59e0b,stroke-width:2px,color:#78350f")
+        lines.append("  classDef piiVar fill:#fed7aa,stroke:#ea580c,stroke-width:2px,color:#7c2d12")
+        lines.append("  classDef sinkCritical fill:#fecaca,stroke:#dc2626,stroke-width:4px,color:#7f1d1d")
+        lines.append("  classDef sinkHigh fill:#fed7aa,stroke:#ea580c,stroke-width:3px,color:#7c2d12")
+        lines.append("  classDef sinkMedium fill:#fef3c7,stroke:#f59e0b,stroke-width:2px,color:#78350f")
+        lines.append("  classDef sinkLow fill:#d1fae5,stroke:#10b981,stroke-width:2px,color:#065f46")
+        lines.append("")
         
-        # Map original IDs to clean IDs
-        id_map = {n['id']: f"node_{i}" for i, n in enumerate(nodes)}
+        # Categorize nodes into horizontal layers
+        pii_keywords = ['email', 'password', 'ssn', 'phone', 'credit', 'name', 'address', 'dob', 'birth']
         
-        # Helper to categorize
-        def get_category(node):
-            ntype = node.get('type', 'unknown')
-            label = node.get('label', '').lower()
-            path = str(node.get('file_path', '')).lower()
-            
-            if ntype == 'sink':
-                return 'sink'
-            
-            if any(x in path for x in ['frontend', 'client', 'ui', 'web', 'view', 'template', 'html', 'form', 'page', 'screen', 'cli', 'input']):
-                return 'input'
-                
-            if any(x in path for x in ['external', 'thirdparty', 'lib', 'requests', 'node_modules']):
-                return 'external'
-                
-            return 'processing'
-
-        # Sort nodes into categories
+        layer_frontend = []  # 📱 User Input (Forms, Client)
+        layer_backend = []   # ⚙️ Processing (Functions, Transforms)
+        layer_storage = []   # 💾 PII Variables (Backend data)
+        layer_sinks = {}     # 🚨 Sinks (Database, Logs, APIs) - deduplicated
+        
+        def make_id(node):
+            return node['id'].replace(':', '_').replace('.', '_').replace('/', '_').replace('-', '_')
+        
         for node in nodes:
-            cat = get_category(node)
-            categories[cat].append(node)
+            ntype = node.get('type', 'variable')
+            label = node.get('label', '')
+            fpath = node.get('file_path', '')
             
-        # Generate Subgraphs
-        # 1. Input
-        if categories['input']:
-            lines.append("  subgraph Input_Frontend [1. Input / Frontend]")
-            lines.append("    direction TB")
-            for node in categories['input']:
-                nid = id_map[node['id']]
-                label = node['label'].replace('"', "'")
-                lines.append(f'    {nid}("{label}"):::input')
-            lines.append("  end")
+            if ntype == 'file':
+                continue
             
-        # 2. Processing
-        if categories['processing']:
-            lines.append("  subgraph Processing_Backend [2. Processing / Backend]")
-            lines.append("    direction TB")
-            for node in categories['processing']:
-                nid = id_map[node['id']]
-                label = node['label'].replace('"', "'")
-                lines.append(f'    {nid}["{label}"]:::processing')
-            lines.append("  end")
-
-        # 3. External
-        if categories['external']:
-            lines.append("  subgraph External_Services [3. External Services]")
-            lines.append("    direction TB")
-            for node in categories['external']:
-                nid = id_map[node['id']]
-                label = node['label'].replace('"', "'")
-                lines.append(f'    {nid}{{"{label}"}}:::external')
-            lines.append("  end")
-
-        # 4. Sinks
-        if categories['sink']:
-            lines.append("  subgraph Data_Sinks [4. Data Sinks]")
-            lines.append("    direction TB")
-            for node in categories['sink']:
-                nid = id_map[node['id']]
-                label = node['label'].replace('"', "'")
-                lines.append(f'    {nid}[("{label}")]:::sink')
-            lines.append("  end")
+            # Detection
+            is_frontend = 'frontend' in fpath.lower() or 'client' in fpath.lower() or 'component' in fpath.lower()
+            is_backend = 'backend' in fpath.lower() or 'server' in fpath.lower() or 'service' in fpath.lower()
+            is_pii = any(kw in label.lower() for kw in pii_keywords)
+            is_function = ntype == 'function'
+            is_sink = ntype == 'sink' or label in ['console.log', 'User.create', 'res.json', 'res.send']
             
-        # Add Edges
+            # Layer Assignment
+            if is_sink:
+                if label not in layer_sinks:
+                    layer_sinks[label] = node
+            elif is_function:
+                if is_frontend:
+                    layer_frontend.append(node)
+                else:
+                    layer_backend.append(node)
+            elif is_pii:
+                if is_frontend:
+                    layer_frontend.append(node)
+                else:
+                    layer_storage.append(node)
+            else:
+                if is_backend:
+                    layer_backend.append(node)
+                else:
+                    layer_storage.append(node)
+        
+        # Generate Layers (Left to Right)
+        
+        # Layer 1: Frontend (Input Collection)
+        if layer_frontend:
+            lines.append('  subgraph L1["📱 FRONTEND<br/>User Input & Forms"]')
+            lines.append('    direction TB')
+            for node in layer_frontend:
+                nid = make_id(node)
+                label = node.get('label', '').replace('"', "'")
+                ntype = node.get('type', '')
+                if ntype == 'function':
+                    lines.append(f'    {nid}["{label}"]:::frontend')
+                else:
+                    lines.append(f'    {nid}("{label}"):::frontend')
+            lines.append('  end')
+            lines.append('')
+        
+        # Layer 2: Backend Processing
+        if layer_backend:
+            lines.append('  subgraph L2["⚙️ BACKEND<br/>Processing & Logic"]')
+            lines.append('    direction TB')
+            for node in layer_backend:
+                nid = make_id(node)
+                label = node.get('label', '').replace('"', "'")
+                lines.append(f'    {nid}["{label}"]:::backend')
+            lines.append('  end')
+            lines.append('')
+        
+        # Layer 3: Storage/PII Variables
+        if layer_storage:
+            lines.append('  subgraph L3["💾 DATA STORAGE<br/>PII Variables"]')
+            lines.append('    direction TB')
+            for node in layer_storage:
+                nid = make_id(node)
+                label = node.get('label', '').replace('"', "'")
+                is_pii = any(kw in label.lower() for kw in pii_keywords)
+                if is_pii:
+                    lines.append(f'    {nid}("{label}"):::piiVar')
+                else:
+                    lines.append(f'    {nid}["{label}"]:::storage')
+            lines.append('  end')
+            lines.append('')
+        
+        # Layer 4: Sinks (Risk-based coloring)
+        if layer_sinks:
+            lines.append('  subgraph L4["🚨 SINKS<br/>Data Destinations"]')
+            lines.append('    direction TB')
+            for label, node in layer_sinks.items():
+                nid = make_id(node)
+                safe_label = label.replace('"', "'")
+                
+                # Determine severity-based style
+                severity = sink_severity_map.get(node['id'], 'low')
+                sink_class = f'sink{severity.capitalize()}'
+                
+                # Add severity indicator
+                severity_icon = self.severity_emoji.get(severity, '⚪')
+                lines.append(f'    {nid}["{severity_icon} {safe_label}"]:::{sink_class}')
+            lines.append('  end')
+            lines.append('')
+        
+        # Data Flows with sink deduplication
+        sink_label_to_id = {label: make_id(node) for label, node in layer_sinks.items()}
+        
+        # Build node ID lookup
+        node_lookup = {n['id']: n for n in nodes}
+        
+        lines.append("  %% Data Flows")
         for edge in edges:
-            src = id_map.get(edge['source'])
-            dst = id_map.get(edge['target'])
+            src_id = edge['source']
+            dst_id = edge['target']
+            edge_label = edge.get('label', '')
             
-            if src and dst:
-                label = edge.get('label', '')
-                arrow = "-->"
-                
-                if edge['type'] == 'network_flow':
-                    arrow = "-.->|HTTP|"
-                elif label:
-                    label = label.replace('"', "'")
-                    arrow = f"-->|{label}|"
-                
-                lines.append(f"  {src} {arrow} {dst}")
-                
+            # Skip structural edges (file definitions), show only data flows
+            if edge_label in ['defines', 'contains']:
+                continue
+            
+            # Skip if source or destination doesn't exist
+            src_node = node_lookup.get(src_id)
+            dst_node = node_lookup.get(dst_id)
+            if not src_node or not dst_node:
+                continue
+            
+            # Skip file nodes
+            if src_node.get('type') == 'file' or dst_node.get('type') == 'file':
+                continue
+            
+            # Map to deduplicated sinks
+            dst_label = dst_node.get('label', '')
+            if dst_label in sink_label_to_id:
+                dst_id_mapped = sink_label_to_id[dst_label]
+            else:
+                dst_id_mapped = make_id(dst_node)
+            
+            src_id_mapped = make_id(src_node)
+            
+            if edge_label == 'HTTP Request':
+                lines.append(f'  {src_id_mapped} -.->|HTTP| {dst_id_mapped}')
+            elif edge_label and edge_label != 'sink':
+                edge_label = edge_label.replace('"', "'")
+                lines.append(f'  {src_id_mapped} -->|{edge_label}| {dst_id_mapped}')
+            else:
+                lines.append(f'  {src_id_mapped} --> {dst_id_mapped}')
+        
         lines.append("```")
+        lines.append("")
+        lines.append("### 🔍 Graph Legend")
+        lines.append("- **📱 Frontend**: User input collection (forms, components)")
+        lines.append("- **⚙️ Backend**: Processing functions and business logic")
+        lines.append("- **💾 Storage**: PII variables and data structures")
+        lines.append("- **🚨 Sinks**: Final data destinations, colored by risk:")
+        lines.append("  - 🔴 **Critical**: Immediate security threat")
+        lines.append("  - 🟠 **High**: Major privacy concern")
+        lines.append("  - 🟡 **Medium**: Should be reviewed")
+        lines.append("  - 🟢 **Low**: Acceptable with precautions")
+        lines.append("")
+        
         return "\n".join(lines)
     
     def _generate_compliance_section(self, scan_result: Dict[str, Any]) -> str:
