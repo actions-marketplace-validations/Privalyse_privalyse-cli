@@ -22,7 +22,7 @@ except ImportError:
 from privalyse_scanner import PrivalyseScanner
 from privalyse_scanner.models.config import ScanConfig
 from privalyse_scanner.models.finding import Finding, ClassificationResult
-from privalyse_scanner.exporters import MarkdownExporter, HTMLExporter
+from privalyse_scanner.exporters import MarkdownExporter, HTMLExporter, JSONExporter
 from privalyse_scanner.utils.visualizer import FlowVisualizer
 
 
@@ -197,10 +197,18 @@ Examples:
         elif str(output_path).endswith('.json'):
             output_format = 'json'
     
+    # Prepare data for exporters
+    findings = results.get('findings', [])
+    metadata = results.get('meta', {})
+    if 'semantic_graph' in results:
+        metadata['semantic_graph'] = results['semantic_graph']
+    if 'compliance' in results:
+        metadata['compliance_score'] = results['compliance']
+
     if output_format in ['markdown', 'md']:
         # Generate markdown report
         exporter = MarkdownExporter()
-        markdown_report = exporter.export(results)
+        markdown_report = exporter.export(findings, metadata)
         
         # Ensure .md extension
         if not str(output_path).endswith('.md'):
@@ -220,15 +228,12 @@ Examples:
         exporter.export(results, output_path)
     
     else:
-        # Default JSON output
-        # Fix for sets in dependency_graph (JSON serialization support)
-        if 'dependency_graph' in results:
-            for k, v in results['dependency_graph'].items():
-                if isinstance(v, set):
-                    results['dependency_graph'][k] = list(v)
-
-        with output_path.open('w') as f:
-            json.dump(results, f, indent=2, cls=PrivalyseJSONEncoder)
+        # Structured JSON output
+        exporter = JSONExporter()
+        json_report = exporter.export(findings, metadata)
+        
+        with output_path.open('w', encoding='utf-8') as f:
+            f.write(json_report)
     
     # Print summary
     compliance = results['compliance']

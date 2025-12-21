@@ -2,5 +2,6 @@
 
 from privalyse_scanner.exporters.markdown_exporter import MarkdownExporter
 from privalyse_scanner.exporters.html_exporter import HTMLExporter
+from privalyse_scanner.exporters.json_exporter import JSONExporter
 
-__all__ = ['MarkdownExporter', 'HTMLExporter']
+__all__ = ['MarkdownExporter', 'HTMLExporter', 'JSONExporter']

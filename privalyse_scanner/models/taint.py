@@ -180,7 +180,6 @@ class TaintTracker:
                     source_node: str = "unknown", taint_source: Optional[str] = None,
                     context: Optional[str] = None, is_sanitized: bool = False):
         """Mark a variable as tainted with PII"""
-        print(f"DEBUG: mark_tainted called for {repr(var_name)}")
         if var_name not in self.tainted_vars:
             self.tainted_vars[var_name] = TaintInfo(
                 variable_name=var_name,

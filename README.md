@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="Logo.png" alt="Privalyse Logo" width="200"/>
+</p>
+
 # 🔒 Privalyse – Make Invisible Data Flows Visible
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -46,8 +50,11 @@ privalyse
 # Scan specific folder
 privalyse --root ./backend
 
-# Output as JSON
+# Output as JSON (Structured)
 privalyse --root ./backend --format json --out results.json
+
+# Output as HTML (Visual Dashboard)
+privalyse --root ./backend --format html --out report.html
 ```
 
 ## 🎥 See It In Action
@@ -101,6 +108,7 @@ The scanner uses AST (Abstract Syntax Tree) parsing for both Python and JavaScri
 - **Cross-file taint tracking** (follows data flows across imports and modules)
 - **Cross-stack tracing** (links Frontend API calls to Backend routes)
 - **GDPR article mapping** (Art. 5, 6, 9, 32)
+- **Structured Reports** (Executive Summary, Compliance View, File Hotspots)
 - **Multiple output formats** (JSON, Markdown, HTML)
 - **Ignore file support** (`.privalyseignore` for false positives)
 - **100% Local Execution** (no code leaves your machine)
