@@ -109,7 +109,8 @@ class ReportGenerator:
         }
 
         for f in self.findings:
-            file_path = str(self._get_attr(f, 'file'))
+            file_val = self._get_attr(f, 'file')
+            file_path = file_val.as_posix() if isinstance(file_val, Path) else str(file_val)
             sev = self._get_attr(f, 'severity')
             if hasattr(sev, 'value'):
                 sev = sev.value

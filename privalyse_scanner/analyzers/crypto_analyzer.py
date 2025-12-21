@@ -128,7 +128,7 @@ class CryptoVisitor(ast.NodeVisitor):
                 self.analyzer.findings.append(Finding(
                     rule="CRYPTO_WEAK_HASH",
                     severity=severity,
-                    file=str(self.file_path),
+                    file=self.file_path.as_posix(),
                     line=node.lineno,
                     snippet=snippet,
                     classification=ClassificationResult(
@@ -172,7 +172,7 @@ class CryptoVisitor(ast.NodeVisitor):
                         self.analyzer.findings.append(Finding(
                             rule="CRYPTO_ECB_MODE",
                             severity=Severity.CRITICAL,
-                            file=str(self.file_path),
+                            file=self.file_path.as_posix(),
                             line=node.lineno,
                             snippet=snippet,
                             classification=ClassificationResult(
@@ -204,7 +204,7 @@ class CryptoVisitor(ast.NodeVisitor):
                         self.analyzer.findings.append(Finding(
                             rule="CRYPTO_ECB_MODE",
                             severity=Severity.CRITICAL,
-                            file=str(self.file_path),
+                            file=self.file_path.as_posix(),
                             line=node.lineno,
                             snippet=snippet,
                             classification=ClassificationResult(
@@ -232,7 +232,7 @@ class CryptoVisitor(ast.NodeVisitor):
                 self.analyzer.findings.append(Finding(
                     rule="CRYPTO_WEAK_CIPHER",
                     severity=Severity.CRITICAL,
-                    file=str(self.file_path),
+                    file=self.file_path.as_posix(),
                     line=node.lineno,
                     snippet=snippet,
                     classification=ClassificationResult(
@@ -266,7 +266,7 @@ class CryptoVisitor(ast.NodeVisitor):
                 self.analyzer.findings.append(Finding(
                     rule="CRYPTO_INSECURE_RANDOM",
                     severity=Severity.HIGH,
-                    file=str(self.file_path),
+                    file=self.file_path.as_posix(),
                     line=node.lineno,
                     snippet=snippet,
                     classification=ClassificationResult(
@@ -302,7 +302,7 @@ class CryptoVisitor(ast.NodeVisitor):
                         self.analyzer.findings.append(Finding(
                             rule="CRYPTO_WEAK_TLS",
                             severity=Severity.CRITICAL,
-                            file=str(self.file_path),
+                            file=self.file_path.as_posix(),
                             line=node.lineno,
                             snippet=snippet,
                             classification=ClassificationResult(
@@ -333,7 +333,7 @@ class CryptoVisitor(ast.NodeVisitor):
                         self.analyzer.findings.append(Finding(
                             rule="CRYPTO_SSL_VERIFY_DISABLED",
                             severity=Severity.CRITICAL,
-                            file=str(self.file_path),
+                            file=self.file_path.as_posix(),
                             line=node.lineno,
                             snippet=snippet,
                             classification=ClassificationResult(
@@ -370,7 +370,7 @@ class CryptoVisitor(ast.NodeVisitor):
                         self.analyzer.findings.append(Finding(
                             rule="CRYPTO_WEAK_KEY_SIZE",
                             severity=Severity.HIGH,
-                            file=str(self.file_path),
+                            file=self.file_path.as_posix(),
                             line=node.lineno,
                             snippet=snippet,
                             classification=ClassificationResult(

@@ -55,7 +55,7 @@ class ComplianceAnalyzer:
                         self.findings.append(Finding(
                             rule="GDPR_CONSENT_MISSING",
                             severity=Severity.HIGH,
-                            file=str(file_path),
+                            file=file_path.as_posix(),
                             line=node.lineno,
                             snippet=self._get_line(code, node.lineno),
                             classification=ClassificationResult(
@@ -89,7 +89,7 @@ class ComplianceAnalyzer:
                         self.findings.append(Finding(
                             rule="GDPR_RETENTION_UNDEFINED",
                             severity=Severity.MEDIUM,
-                            file=str(file_path),
+                            file=file_path.as_posix(),
                             line=node.lineno,
                             snippet=self._get_line(code, node.lineno),
                             classification=ClassificationResult(
@@ -124,7 +124,7 @@ class ComplianceAnalyzer:
                         self.findings.append(Finding(
                             rule="GDPR_DATA_EXCESSIVE",
                             severity=Severity.MEDIUM,
-                            file=str(file_path),
+                            file=file_path.as_posix(),
                             line=node.lineno,
                             snippet=self._get_line(code, node.lineno),
                             classification=ClassificationResult(
@@ -157,7 +157,7 @@ class ComplianceAnalyzer:
                         self.findings.append(Finding(
                             rule="GDPR_LEGAL_BASIS_MISSING",
                             severity=Severity.HIGH,
-                            file=str(file_path),
+                            file=file_path.as_posix(),
                             line=node.lineno,
                             snippet=self._get_line(code, node.lineno),
                             classification=ClassificationResult(

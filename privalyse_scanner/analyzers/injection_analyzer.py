@@ -178,7 +178,7 @@ class InjectionVisitor(ast.NodeVisitor):
         self.analyzer.findings.append(Finding(
             rule="SQL_INJECTION",
             severity=severity,
-            file=str(self.file_path),
+            file=self.file_path.as_posix(),
             line=node.lineno,
             snippet=snippet,
             classification=ClassificationResult(
@@ -253,7 +253,7 @@ class InjectionVisitor(ast.NodeVisitor):
             self.analyzer.findings.append(Finding(
                 rule="CODE_INJECTION",
                 severity=Severity.CRITICAL,
-                file=str(self.file_path),
+                file=self.file_path.as_posix(),
                 line=node.lineno,
                 snippet=snippet,
                 classification=ClassificationResult(
@@ -288,7 +288,7 @@ class InjectionVisitor(ast.NodeVisitor):
                     self.analyzer.findings.append(Finding(
                         rule="COMMAND_INJECTION",
                         severity=Severity.CRITICAL,
-                        file=str(self.file_path),
+                        file=self.file_path.as_posix(),
                         line=node.lineno,
                         snippet=snippet,
                         classification=ClassificationResult(
@@ -338,7 +338,7 @@ class InjectionVisitor(ast.NodeVisitor):
                 self.analyzer.findings.append(Finding(
                     rule="PATH_TRAVERSAL",
                     severity=severity,
-                    file=str(self.file_path),
+                    file=self.file_path.as_posix(),
                     line=node.lineno,
                     snippet=snippet,
                     classification=ClassificationResult(
@@ -385,7 +385,7 @@ class InjectionVisitor(ast.NodeVisitor):
                 self.analyzer.findings.append(Finding(
                     rule="SSRF",
                     severity=Severity.HIGH,
-                    file=str(self.file_path),
+                    file=self.file_path.as_posix(),
                     line=node.lineno,
                     snippet=snippet,
                     classification=ClassificationResult(
@@ -423,7 +423,7 @@ class InjectionVisitor(ast.NodeVisitor):
                 self.analyzer.findings.append(Finding(
                     rule="YAML_UNSAFE_LOAD",
                     severity=Severity.CRITICAL,
-                    file=str(self.file_path),
+                    file=self.file_path.as_posix(),
                     line=node.lineno,
                     snippet=snippet,
                     classification=ClassificationResult(
@@ -452,7 +452,7 @@ class InjectionVisitor(ast.NodeVisitor):
                     self.analyzer.findings.append(Finding(
                         rule="PICKLE_UNTRUSTED",
                         severity=Severity.CRITICAL,
-                        file=str(self.file_path),
+                        file=self.file_path.as_posix(),
                         line=node.lineno,
                         snippet=snippet,
                         classification=ClassificationResult(
@@ -494,7 +494,7 @@ class InjectionVisitor(ast.NodeVisitor):
                     self.analyzer.findings.append(Finding(
                         rule="TEMPLATE_INJECTION",
                         severity=Severity.CRITICAL,
-                        file=str(self.file_path),
+                        file=self.file_path.as_posix(),
                         line=node.lineno,
                         snippet=snippet,
                         classification=ClassificationResult(
@@ -533,7 +533,7 @@ class InjectionVisitor(ast.NodeVisitor):
                         self.analyzer.findings.append(Finding(
                             rule="XSS_REFLECTED",
                             severity=Severity.HIGH,
-                            file=str(self.file_path),
+                            file=self.file_path.as_posix(),
                             line=node.lineno,
                             snippet=snippet,
                             classification=ClassificationResult(
@@ -581,7 +581,7 @@ class InjectionVisitor(ast.NodeVisitor):
                 self.analyzer.findings.append(Finding(
                     rule="XXE_VULNERABILITY",
                     severity=Severity.HIGH,
-                    file=str(self.file_path),
+                    file=self.file_path.as_posix(),
                     line=node.lineno,
                     snippet=snippet,
                     classification=ClassificationResult(

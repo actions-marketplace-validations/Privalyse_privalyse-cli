@@ -365,7 +365,7 @@ class PythonAnalyzer(BaseAnalyzer):
                                 
                                 findings.append(Finding(
                                     rule="HARDCODED_SECRET",
-                                    file=str(file_path),
+                                    file=file_path.as_posix(),
                                     line=node.lineno,
                                     snippet=snippet,
                                     severity=Severity.CRITICAL if confidence > 0.8 else Severity.HIGH,
@@ -693,7 +693,7 @@ class PythonAnalyzer(BaseAnalyzer):
                             if not info.is_sanitized:
                                 findings.append(Finding(
                                     rule="AI_PII_LEAK",
-                                    file=str(file_path),
+                                    file=file_path.as_posix(),
                                     line=node.lineno,
                                     snippet=extract_ast_snippet(code, node.lineno, node.lineno),
                                     severity=Severity.CRITICAL,
@@ -752,7 +752,7 @@ class PythonAnalyzer(BaseAnalyzer):
                             if detected_high_risk:
                                 findings.append(Finding(
                                     rule="PRINT_SENSITIVE_DATA",
-                                    file=str(file_path),
+                                    file=file_path.as_posix(),
                                     line=node.lineno,
                                     snippet=extract_ast_snippet(code, node.lineno, node.lineno),
                                     severity=Severity.HIGH,
@@ -825,7 +825,7 @@ class PythonAnalyzer(BaseAnalyzer):
                                     snippet = extract_ast_snippet(code, node.lineno, node.lineno)
                                     findings.append(Finding(
                                         rule="HARDCODED_CREDENTIAL_IN_CALL",
-                                        file=str(file_path),
+                                        file=file_path.as_posix(),
                                         line=node.lineno,
                                         snippet=snippet,
                                         severity=Severity.CRITICAL,
@@ -850,7 +850,7 @@ class PythonAnalyzer(BaseAnalyzer):
                                     snippet = extract_ast_snippet(code, node.lineno, node.lineno)
                                     findings.append(Finding(
                                         rule="HARDCODED_SECRET_PROPAGATION",
-                                        file=str(file_path),
+                                        file=file_path.as_posix(),
                                         line=node.lineno,
                                         snippet=snippet,
                                         severity=Severity.CRITICAL,
@@ -992,7 +992,7 @@ class PythonAnalyzer(BaseAnalyzer):
                     finding = Finding(
                         rule=rule_id,
                         severity=Severity(severity),
-                        file=str(file_path),
+                        file=file_path.as_posix(),
                         line=node.lineno,
                         snippet=snip,
                         classification=ClassificationResult(**classification),
@@ -1070,7 +1070,7 @@ class PythonAnalyzer(BaseAnalyzer):
                     finding = Finding(
                         rule=rule_id,
                         severity=Severity(severity),
-                        file=str(file_path),
+                        file=file_path.as_posix(),
                         line=node.lineno,
                         snippet=snip,
                         classification=ClassificationResult(**classification),
@@ -1147,7 +1147,7 @@ class PythonAnalyzer(BaseAnalyzer):
                     finding = Finding(
                         rule="HTTP_PLAIN",
                         severity=Severity.CRITICAL if classification["severity"] != "low" else Severity.HIGH,
-                        file=str(file_path),
+                        file=file_path.as_posix(),
                         line=node.lineno,
                         snippet=snip,
                         classification=ClassificationResult(**classification),
@@ -1285,7 +1285,7 @@ class PythonAnalyzer(BaseAnalyzer):
                     finding = Finding(
                         rule=rule_id,
                         severity=Severity(severity),
-                        file=str(file_path),
+                        file=file_path.as_posix(),
                         line=node.lineno,
                         snippet=snip,
                         classification=ClassificationResult(**classification),

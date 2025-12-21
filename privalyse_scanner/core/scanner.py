@@ -599,7 +599,7 @@ class PrivalyseScanner:
         Implements 'Serum' filtering: Only keeps flows related to AI Sinks or Critical Data Leaks.
         """
         try:
-            file_id = str(file_path.relative_to(self.config.root_path)) if self.config.root_path else file_path.name
+            file_id = file_path.relative_to(self.config.root_path).as_posix() if self.config.root_path else file_path.name
         except ValueError:
             file_id = file_path.name
             
@@ -649,7 +649,7 @@ class PrivalyseScanner:
                 id=source_id, 
                 type=source_type, 
                 label=source_label, 
-                file_path=str(file_path), 
+                file_path=file_path.as_posix(), 
                 line_number=flow.source_line,
                 metadata=node_metadata
             ))
@@ -658,7 +658,7 @@ class PrivalyseScanner:
                 id=target_id, 
                 type=target_type, 
                 label=target_label, 
-                file_path=str(file_path), 
+                file_path=file_path.as_posix(), 
                 line_number=flow.target_line,
                 metadata=node_metadata
             ))

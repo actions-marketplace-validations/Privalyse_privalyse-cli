@@ -458,7 +458,7 @@ class JavaScriptAnalyzer(BaseAnalyzer):
                 
                 # Handle Call Expressions (Sinks): sink(tainted)
                 elif node.type == 'CallExpression':
-                    self._analyze_call(node, node.loc.start.line, findings, str(file_path))
+                    self._analyze_call(node, node.loc.start.line, findings, file_path.as_posix())
                 
                 # Recursively visit children
                 for key, value in node.items():
@@ -636,7 +636,7 @@ class JavaScriptAnalyzer(BaseAnalyzer):
                     findings.append(Finding(
                         rule="HARDCODED_SECRET",
                         severity="critical" if confidence > 0.8 else "high",
-                        file=str(file_path),
+                        file=file_path.as_posix(),
                         line=i + 1,
                         snippet=f'{var_name} = "***"',
                         classification=ClassificationResult(
@@ -687,7 +687,7 @@ class JavaScriptAnalyzer(BaseAnalyzer):
             #     findings.append(Finding(
             #         rule="INFRA_EXPRESS_HELMET_MISSING",
             #         severity="medium",
-            #         file=str(file_path),
+            #         file=file_path.as_posix(),
             #         line=1, # General file finding
             #         snippet="const app = express();",
             #         classification=ClassificationResult(
@@ -707,7 +707,7 @@ class JavaScriptAnalyzer(BaseAnalyzer):
             #     findings.append(Finding(
             #         rule="INFRA_EXPRESS_FINGERPRINT",
             #         severity="low",
-            #         file=str(file_path),
+            #         file=file_path.as_posix(),
             #         line=1,
             #         snippet="const app = express();",
             #         classification=ClassificationResult(
@@ -942,7 +942,7 @@ class JavaScriptAnalyzer(BaseAnalyzer):
                         finding = Finding(
                             rule=rule,
                             severity="high",
-                            file=str(file_path),
+                            file=file_path.as_posix(),
                             line=line_num,
                             snippet=line.strip()[:200],
                             classification=ClassificationResult(
@@ -1014,7 +1014,7 @@ class JavaScriptAnalyzer(BaseAnalyzer):
                     finding = Finding(
                         rule="BACKEND_PII_INPUT",
                         severity="medium",
-                        file=str(file_path),
+                        file=file_path.as_posix(),
                         line=line_num,
                         snippet=line.strip()[:200],
                         classification=ClassificationResult(
@@ -1035,7 +1035,7 @@ class JavaScriptAnalyzer(BaseAnalyzer):
                 finding = Finding(
                     rule="BACKEND_PII_INPUT",
                     severity="medium",
-                    file=str(file_path),
+                    file=file_path.as_posix(),
                     line=line_num,
                     snippet=line.strip()[:200],
                     classification=ClassificationResult(
@@ -1067,7 +1067,7 @@ class JavaScriptAnalyzer(BaseAnalyzer):
                         finding = Finding(
                             rule="BACKEND_PII_INPUT",
                             severity="medium",
-                            file=str(file_path),
+                            file=file_path.as_posix(),
                             line=line_num,
                             snippet=line.strip()[:200],
                             classification=ClassificationResult(
@@ -1111,7 +1111,7 @@ class JavaScriptAnalyzer(BaseAnalyzer):
                     finding = Finding(
                         rule="DB_MODEL_PII",
                         severity="medium",
-                        file=str(file_path),
+                        file=file_path.as_posix(),
                         line=line_num,
                         snippet=line.strip()[:200],
                         classification=ClassificationResult(
@@ -1138,7 +1138,7 @@ class JavaScriptAnalyzer(BaseAnalyzer):
                     finding = Finding(
                         rule="DB_MODEL_PII",
                         severity="medium",
-                        file=str(file_path),
+                        file=file_path.as_posix(),
                         line=line_num,
                         snippet=line.strip()[:200],
                         classification=ClassificationResult(
@@ -1337,7 +1337,7 @@ class JavaScriptAnalyzer(BaseAnalyzer):
                     finding = Finding(
                         rule=f"TRACKING_{rule_name}",
                         severity=severity,
-                        file=str(file_path),
+                        file=file_path.as_posix(),
                         line=line_num,
                         snippet=line.strip()[:200],
                         classification=ClassificationResult(
@@ -1386,7 +1386,7 @@ class JavaScriptAnalyzer(BaseAnalyzer):
                         finding = Finding(
                             rule=f"FORM_FIELD_{pii_type.upper()}",
                             severity=config["severity"],
-                            file=str(file_path),
+                            file=file_path.as_posix(),
                             line=line_num,
                             snippet=line.strip()[:200],
                             classification=ClassificationResult(
@@ -1445,7 +1445,7 @@ class JavaScriptAnalyzer(BaseAnalyzer):
                     finding = Finding(
                         rule="AI_PII_LEAK",
                         severity="critical",
-                        file=str(file_path),
+                        file=file_path.as_posix(),
                         line=line_num,
                         snippet=line.strip()[:200],
                         classification=ClassificationResult(
@@ -1464,7 +1464,7 @@ class JavaScriptAnalyzer(BaseAnalyzer):
                     finding = Finding(
                         rule="HTTP_INSECURE_API",
                         severity="high",
-                        file=str(file_path),
+                        file=file_path.as_posix(),
                         line=line_num,
                         snippet=line.strip()[:200],
                         classification=ClassificationResult(
@@ -1534,7 +1534,7 @@ class JavaScriptAnalyzer(BaseAnalyzer):
                     finding = Finding(
                         rule="AI_PII_LEAK",
                         severity=severity,
-                        file=str(file_path),
+                        file=file_path.as_posix(),
                         line=line_num,
                         snippet=line.strip()[:200],
                         classification=ClassificationResult(
@@ -1554,7 +1554,7 @@ class JavaScriptAnalyzer(BaseAnalyzer):
                     finding = Finding(
                         rule="HTTP_INSECURE_API",
                         severity="high",
-                        file=str(file_path),
+                        file=file_path.as_posix(),
                         line=line_num,
                         snippet=line.strip()[:200],
                         classification=ClassificationResult(
@@ -1637,7 +1637,7 @@ class JavaScriptAnalyzer(BaseAnalyzer):
                     finding = Finding(
                         rule="INSECURE_BROWSER_STORAGE",
                         severity="high",
-                        file=str(file_path),
+                        file=file_path.as_posix(),
                         line=line_num,
                         snippet=line_content[:200],
                         classification=ClassificationResult(
@@ -1670,7 +1670,7 @@ class JavaScriptAnalyzer(BaseAnalyzer):
                      finding = Finding(
                         rule="INSECURE_COOKIE_STORAGE",
                         severity="medium",
-                        file=str(file_path),
+                        file=file_path.as_posix(),
                         line=line_num,
                         snippet=line_content[:200],
                         classification=ClassificationResult(

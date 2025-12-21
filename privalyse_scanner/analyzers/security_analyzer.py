@@ -55,7 +55,7 @@ class SecurityAnalyzer:
                     self.findings.append(Finding(
                         rule="HTTP_PLAIN",
                         severity=Severity.MEDIUM,
-                        file=str(file_path),
+                        file=file_path.as_posix(),
                         line=node.lineno,
                         snippet=self._get_line(code, node.lineno),
                         classification=ClassificationResult(
@@ -113,7 +113,7 @@ class SecurityAnalyzer:
                         self.findings.append(Finding(
                             rule="COOKIE_INSECURE",
                             severity=Severity.HIGH,
-                            file=str(file_path),
+                            file=file_path.as_posix(),
                             line=node.lineno,
                             snippet=self._get_line(code, node.lineno),
                             classification=ClassificationResult(
@@ -133,7 +133,7 @@ class SecurityAnalyzer:
                         self.findings.append(Finding(
                             rule="COOKIE_NO_HTTPONLY",
                             severity=Severity.MEDIUM,
-                            file=str(file_path),
+                            file=file_path.as_posix(),
                             line=node.lineno,
                             snippet=self._get_line(code, node.lineno),
                             classification=ClassificationResult(
@@ -157,7 +157,7 @@ class SecurityAnalyzer:
                             self.findings.append(Finding(
                                 rule="COOKIE_TRACKING_CONSENT",
                                 severity=Severity.MEDIUM,
-                                file=str(file_path),
+                                file=file_path.as_posix(),
                                 line=node.lineno,
                                 snippet=self._get_line(code, node.lineno),
                                 classification=ClassificationResult(
@@ -179,7 +179,7 @@ class SecurityAnalyzer:
                         self.findings.append(Finding(
                             rule="CORS_WILDCARD",
                             severity=Severity.HIGH,
-                            file=str(file_path),
+                            file=file_path.as_posix(),
                             line=node.lineno,
                             snippet=self._get_line(code, node.lineno),
                             classification=ClassificationResult(
@@ -209,7 +209,7 @@ class SecurityAnalyzer:
                 self.findings.append(Finding(
                     rule=rule_id,
                     severity=Severity.MEDIUM,
-                    file=str(file_path),
+                    file=file_path.as_posix(),
                     line=lineno,
                     snippet=self._get_line(code, lineno),
                     classification=ClassificationResult(
@@ -239,7 +239,7 @@ class SecurityAnalyzer:
                     self.findings.append(Finding(
                         rule="PASSWORD_HASH_WEAK",
                         severity=Severity.CRITICAL,
-                        file=str(file_path),
+                        file=file_path.as_posix(),
                         line=node.lineno,
                         snippet=self._get_line(code, node.lineno),
                         classification=ClassificationResult(
@@ -260,7 +260,7 @@ class SecurityAnalyzer:
                     self.findings.append(Finding(
                         rule="PASSWORD_HARDCODED",
                         severity=Severity.CRITICAL,
-                        file=str(file_path),
+                        file=file_path.as_posix(),
                         line=node.lineno,
                         snippet=self._get_line(code, node.lineno),
                         classification=ClassificationResult(
@@ -281,7 +281,7 @@ class SecurityAnalyzer:
                     self.findings.append(Finding(
                         rule="SESSION_INSECURE",
                         severity=Severity.HIGH,
-                        file=str(file_path),
+                        file=file_path.as_posix(),
                         line=node.lineno,
                         snippet=self._get_line(code, node.lineno),
                         classification=ClassificationResult(
@@ -312,7 +312,7 @@ class SecurityAnalyzer:
                         self.findings.append(Finding(
                             rule="API_SSL_DISABLED",
                             severity=Severity.CRITICAL,
-                            file=str(file_path),
+                            file=file_path.as_posix(),
                             line=node.lineno,
                             snippet=self._get_line(code, node.lineno),
                             classification=ClassificationResult(
@@ -333,7 +333,7 @@ class SecurityAnalyzer:
                         self.findings.append(Finding(
                             rule="API_EXTERNAL_DATA",
                             severity=Severity.HIGH,
-                            file=str(file_path),
+                            file=file_path.as_posix(),
                             line=node.lineno,
                             snippet=self._get_line(code, node.lineno),
                             classification=ClassificationResult(
@@ -370,7 +370,7 @@ class SecurityAnalyzer:
                 self.findings.append(Finding(
                     rule=rule_id,
                     severity=Severity.CRITICAL,
-                    file=str(file_path),
+                    file=file_path.as_posix(),
                     line=line_no,
                     snippet=self._get_line(code, line_no),
                     classification=ClassificationResult(
@@ -396,7 +396,7 @@ class SecurityAnalyzer:
                                 self.findings.append(Finding(
                                     rule="CFG_DEBUG_ENABLED",
                                     severity=Severity.HIGH,
-                                    file=str(file_path),
+                                    file=file_path.as_posix(),
                                     line=node.lineno,
                                     snippet=self._get_line(code, node.lineno),
                                     classification=ClassificationResult(

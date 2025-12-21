@@ -63,7 +63,7 @@ class InfrastructureAnalyzer(BaseAnalyzer):
                     self.findings.append(Finding(
                         rule="DOCKER_SENSITIVE_COPY",
                         severity=Severity.HIGH,
-                        file=str(file_path),
+                        file=file_path.as_posix(),
                         line=line_num,
                         snippet=line.strip(),
                         classification=ClassificationResult(
@@ -96,7 +96,7 @@ class InfrastructureAnalyzer(BaseAnalyzer):
                                 self.findings.append(Finding(
                                     rule="DOCKER_ENV_SECRET",
                                     severity=Severity.CRITICAL,
-                                    file=str(file_path),
+                                    file=file_path.as_posix(),
                                     line=line_num,
                                     snippet=line.strip(),
                                     classification=ClassificationResult(
@@ -160,7 +160,7 @@ class InfrastructureAnalyzer(BaseAnalyzer):
                         self.findings.append(Finding(
                             rule="DOCKER_WEAK_PASSWORD",
                             severity=Severity.HIGH,
-                            file=str(file_path),
+                            file=file_path.as_posix(),
                             line=line_num,
                             snippet=line.strip(),
                             classification=ClassificationResult(
@@ -178,7 +178,7 @@ class InfrastructureAnalyzer(BaseAnalyzer):
                          self.findings.append(Finding(
                             rule="DOCKER_COMPOSE_SECRET",
                             severity=Severity.HIGH,
-                            file=str(file_path),
+                            file=file_path.as_posix(),
                             line=line_num,
                             snippet=line.strip(),
                             classification=ClassificationResult(
@@ -209,7 +209,7 @@ class InfrastructureAnalyzer(BaseAnalyzer):
                                 self.findings.append(Finding(
                                     rule="DOCKER_EXPOSED_DB_PORT",
                                     severity=Severity.HIGH,
-                                    file=str(file_path),
+                                    file=file_path.as_posix(),
                                     line=line_num,
                                     snippet=line.strip(),
                                     classification=ClassificationResult(
@@ -256,7 +256,7 @@ class InfrastructureAnalyzer(BaseAnalyzer):
                     self.findings.append(Finding(
                         rule="CONFIG_HARDCODED_SECRET",
                         severity=Severity.HIGH,
-                        file=str(file_path),
+                        file=file_path.as_posix(),
                         line=line_num,
                         snippet=line.strip(),
                         classification=ClassificationResult(

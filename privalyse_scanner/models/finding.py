@@ -3,6 +3,7 @@
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
 from enum import Enum
+from pathlib import Path
 
 
 class Severity(str, Enum):
@@ -66,10 +67,17 @@ class Finding:
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
+        file_path = self.file
+        if isinstance(file_path, Path):
+            file_path = file_path.as_posix()
+        elif isinstance(file_path, str):
+            # Ensure even string paths are normalized to forward slashes
+            file_path = file_path.replace('\\', '/')
+
         result = {
             "rule": self.rule,
             "severity": self.severity.value if isinstance(self.severity, Severity) else self.severity,
-            "file": self.file,
+            "file": file_path,
             "line": self.line,
             "snippet": self.snippet,
             "classification": self.classification.to_dict() if hasattr(self.classification, 'to_dict') else self.classification,
