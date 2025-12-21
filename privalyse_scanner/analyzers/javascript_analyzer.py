@@ -1,12 +1,21 @@
 """JavaScript/TypeScript code analyzer for React form fields and privacy issues"""
 
 import re
+import logging
 from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
+
+try:
+    import esprima
+except ImportError:
+    esprima = None
 
 from ..models.finding import Finding, ClassificationResult
 from ..models.taint import DataFlowEdge, TaintInfo
 from .base_analyzer import BaseAnalyzer, AnalyzedSymbol, AnalyzedImport
+
+logger = logging.getLogger(__name__)
+
 
 
 class JSTaintTracker:
@@ -247,6 +256,10 @@ class JavaScriptAnalyzer(BaseAnalyzer):
         # Initialize taint tracker for this file
         self.taint_tracker = JSTaintTracker()
         
+        # 0. Perform AST-based Taint Analysis (Deep)
+        ast_findings = self._perform_ast_taint_analysis(file_path, code, module_name=module_name)
+        findings.extend(ast_findings)
+
         # 1. Perform Lite Taint Analysis (Assignments & Propagation)
         taint_findings = self._perform_taint_analysis(file_path, code, module_name=module_name)
         findings.extend(taint_findings)
@@ -279,6 +292,260 @@ class JavaScriptAnalyzer(BaseAnalyzer):
         
         # Return findings and collected data flow edges
         return findings, self.taint_tracker.data_flow_edges
+
+    def extract_imports(self, code: str) -> List[AnalyzedImport]:
+        """
+        Extract JavaScript imports using Esprima AST.
+        Supports ES6 imports and CommonJS require().
+        """
+        imports = []
+        if not esprima:
+            # logger.warning("Esprima not installed. Skipping JS import analysis.")
+            return imports
+
+        try:
+            # Parse as module to support 'import' statements. Enable JSX.
+            tree = esprima.parseModule(code, {'loc': True, 'tolerant': True, 'jsx': True})
+            
+            for node in tree.body:
+                # ES6 Import: import { x } from 'y';
+                if node.type == 'ImportDeclaration':
+                    source = node.source.value
+                    imported_names = []
+                    for specifier in node.specifiers:
+                        if specifier.type == 'ImportSpecifier':
+                            imported_names.append(specifier.imported.name)
+                        elif specifier.type == 'ImportDefaultSpecifier':
+                            imported_names.append('default')
+                        elif specifier.type == 'ImportNamespaceSpecifier':
+                            imported_names.append('*')
+                    
+                    imports.append(AnalyzedImport(
+                        source_module=source,
+                        imported_names=imported_names,
+                        line=node.loc.start.line
+                    ))
+                
+                # CommonJS: const x = require('y');
+                elif node.type == 'VariableDeclaration':
+                    for decl in node.declarations:
+                        if (decl.init and decl.init.type == 'CallExpression' and 
+                            hasattr(decl.init.callee, 'name') and decl.init.callee.name == 'require' and decl.init.arguments):
+                            
+                            arg = decl.init.arguments[0]
+                            if arg.type == 'Literal':
+                                source = arg.value
+                                imports.append(AnalyzedImport(
+                                    source_module=source,
+                                    imported_names=[], # CommonJS usually imports the whole module object
+                                    line=node.loc.start.line
+                                ))
+
+        except Exception as e:
+            # Fallback or ignore syntax errors (e.g. TS syntax that esprima can't handle)
+            # logger.debug(f"Error parsing JS imports: {e}")
+            pass
+            
+        return imports
+
+    def extract_symbols(self, code: str) -> List[AnalyzedSymbol]:
+        """
+        Extract JavaScript exports and top-level definitions using Esprima AST.
+        """
+        symbols = []
+        if not esprima:
+            return symbols
+
+        try:
+            tree = esprima.parseModule(code, {'loc': True, 'tolerant': True, 'jsx': True})
+            
+            for node in tree.body:
+                # ES6 Export: export const x = ...
+                if node.type == 'ExportNamedDeclaration':
+                    if node.declaration:
+                        # export const x = ...
+                        if node.declaration.type == 'VariableDeclaration':
+                            for decl in node.declaration.declarations:
+                                if decl.id.type == 'Identifier':
+                                    symbols.append(AnalyzedSymbol(
+                                        name=decl.id.name,
+                                        type='variable',
+                                        line=node.loc.start.line,
+                                        is_exported=True,
+                                        signature=f"export const {decl.id.name}"
+                                    ))
+                        # export function f() {}
+                        elif node.declaration.type == 'FunctionDeclaration':
+                            symbols.append(AnalyzedSymbol(
+                                name=node.declaration.id.name,
+                                type='function',
+                                line=node.loc.start.line,
+                                is_exported=True,
+                                signature=f"export function {node.declaration.id.name}"
+                            ))
+                        # export class C {}
+                        elif node.declaration.type == 'ClassDeclaration':
+                            symbols.append(AnalyzedSymbol(
+                                name=node.declaration.id.name,
+                                type='class',
+                                line=node.loc.start.line,
+                                is_exported=True,
+                                signature=f"export class {node.declaration.id.name}"
+                            ))
+                
+                # ES6 Default Export: export default ...
+                elif node.type == 'ExportDefaultDeclaration':
+                    name = "default"
+                    if hasattr(node.declaration, 'id') and node.declaration.id:
+                        name = node.declaration.id.name
+                    
+                    symbols.append(AnalyzedSymbol(
+                        name=name,
+                        type='export_default',
+                        line=node.loc.start.line,
+                        is_exported=True,
+                        signature="export default"
+                    ))
+
+                # Top-level definitions (internal symbols)
+                elif node.type == 'FunctionDeclaration':
+                     symbols.append(AnalyzedSymbol(
+                        name=node.id.name,
+                        type='function',
+                        line=node.loc.start.line,
+                        is_exported=False,
+                        signature=f"function {node.id.name}"
+                    ))
+                elif node.type == 'ClassDeclaration':
+                     symbols.append(AnalyzedSymbol(
+                        name=node.id.name,
+                        type='class',
+                        line=node.loc.start.line,
+                        is_exported=False,
+                        signature=f"class {node.id.name}"
+                    ))
+
+        except Exception as e:
+            # logger.debug(f"Error parsing JS symbols: {e}")
+            pass
+            
+        return symbols
+
+    def _perform_ast_taint_analysis(self, file_path: Path, code: str, module_name: str = None) -> List[Finding]:
+        """
+        Perform taint analysis using Esprima AST.
+        """
+        findings = []
+        if not esprima:
+            return findings
+
+        try:
+            tree = esprima.parseModule(code, {'loc': True, 'tolerant': True, 'jsx': True})
+            
+            # Simple visitor function
+            def visit(node):
+                if not node: return
+                
+                # Handle Variable Declarations: const x = source
+                if node.type == 'VariableDeclaration':
+                    for decl in node.declarations:
+                        if decl.init:
+                            self._analyze_assignment(decl.id, decl.init, node.loc.start.line, findings)
+                
+                # Handle Assignments: x = source
+                elif node.type == 'AssignmentExpression':
+                    self._analyze_assignment(node.left, node.right, node.loc.start.line, findings)
+                
+                # Handle Call Expressions (Sinks): sink(tainted)
+                elif node.type == 'CallExpression':
+                    self._analyze_call(node, node.loc.start.line, findings, str(file_path))
+                
+                # Recursively visit children
+                for key, value in node.items():
+                    if key in ['loc', 'range', 'type']: continue
+                    if isinstance(value, list):
+                        for item in value:
+                            if hasattr(item, 'type'):
+                                visit(item)
+                    elif hasattr(value, 'type'):
+                        visit(value)
+
+            visit(tree)
+            
+        except Exception as e:
+            # logger.debug(f"AST Analysis failed for {file_path}: {e}")
+            pass
+            
+        return findings
+
+    def _analyze_assignment(self, target, value, line, findings):
+        """Analyze assignment for taint sources."""
+        # Check if value is a source
+        # Example: req.body, req.query
+        source_name = self._get_node_name(value)
+        target_name = self._get_node_name(target)
+        
+        if not source_name or not target_name:
+            return
+
+        # 1. Request Objects (Express/Node)
+        if 'req.body' in source_name or 'req.query' in source_name or 'req.params' in source_name:
+            self.taint_tracker.mark_tainted(
+                target_name, ['user_input'], source_name, context="request_handler"
+            )
+        
+        # 2. Fetch Results (Frontend)
+        # const data = await response.json()
+        if 'response.json' in source_name:
+             self.taint_tracker.mark_tainted(
+                target_name, ['api_data'], source_name, context="fetch_response"
+            )
+
+    def _analyze_call(self, node, line, findings, file_path):
+        """Analyze function call for sinks."""
+        func_name = self._get_node_name(node.callee)
+        if not func_name: return
+        
+        # 1. Logging Sinks
+        if func_name in ['console.log', 'console.error', 'logger.info']:
+            for arg in node.arguments:
+                arg_name = self._get_node_name(arg)
+                if arg_name and self.taint_tracker.is_tainted(arg_name):
+                    info = self.taint_tracker.get_taint_info(arg_name)
+                    findings.append(Finding(
+                        rule="LOG_PII",
+                        file=file_path,
+                        line=line,
+                        snippet=f"{func_name}({arg_name})",
+                        severity="medium",
+                        classification=ClassificationResult(
+                            pii_types=info.pii_types,
+                            category="logging",
+                            severity="medium",
+                            confidence=0.8,
+                            article="Art. 32",
+                            legal_basis_required=True,
+                            sectors=[],
+                            reasoning=f"Tainted variable '{arg_name}' logged to console"
+                        )
+                    ))
+
+    def _get_node_name(self, node):
+        """Helper to get string representation of a node (e.g. 'req.body')."""
+        if not node: return None
+        if node.type == 'Identifier':
+            return node.name
+        if node.type == 'MemberExpression':
+            obj = self._get_node_name(node.object)
+            prop = self._get_node_name(node.property)
+            if obj and prop:
+                return f"{obj}.{prop}"
+        if node.type == 'CallExpression':
+             callee = self._get_node_name(node.callee)
+             return f"{callee}()"
+        if node.type == 'AwaitExpression':
+            return self._get_node_name(node.argument)
+        return None
 
     def _analyze_secrets(self, file_path: Path, code: str) -> List[Finding]:
         """

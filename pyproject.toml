@@ -40,7 +40,8 @@ keywords = [
 ]
 requires-python = ">=3.8"
 dependencies = [
-    "rich>=13.0.0"
+    "rich>=13.0.0",
+    "esprima>=4.0.1"
 ]
 
 [project.urls]
