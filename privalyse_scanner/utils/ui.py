@@ -18,11 +18,23 @@ from rich import box
 from ..models.finding import Finding
 
 # Shared console instance
-console = Console()
+# Force UTF-8 encoding for Windows compatibility
+console = Console(force_terminal=True, force_interactive=False)
+if console.legacy_windows:
+    # Fallback for legacy Windows terminals that don't support full unicode
+    console = Console(force_terminal=True, force_interactive=False, legacy_windows=False)
 
 def print_banner():
     """Print the Privalyse banner"""
-    title = Text("🔒 Privalyse Scanner", style="bold cyan")
+    # Use simpler characters for Windows compatibility if needed, but Rich usually handles it.
+    # The issue is likely the default encoding on Windows GHA runners (cp1252).
+    # We can try to force utf-8 or use safe characters.
+    
+    try:
+        title = Text("🔒 Privalyse Scanner", style="bold cyan")
+    except UnicodeEncodeError:
+        title = Text("Privalyse Scanner", style="bold cyan")
+        
     subtitle = Text("Privacy & GDPR Compliance Intelligence", style="italic white")
     
     console.print(Panel(
