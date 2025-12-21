@@ -92,18 +92,18 @@ Privalyse performs static analysis to detect:
 - **GDPR Violations**: Mapping findings to specific GDPR articles (Art. 5, 6, 9, 32)
 - **Security Misconfigurations**: HTTP vs HTTPS, CORS, security headers
 
-The scanner uses AST (Abstract Syntax Tree) parsing for Python and regex-based analysis for JavaScript/TypeScript.
+The scanner uses AST (Abstract Syntax Tree) parsing for both Python and JavaScript/TypeScript to ensure deep understanding of your code structure.
 
 ## Features
 
 - **Python & JavaScript/TypeScript** support
-- **AST-based analysis** for Python (deterministic, no false positives from comments)
-- **Cross-file taint tracking** (follows data flows across imports)
+- **AST-based analysis** for Python and JS/TS (deterministic, deep data flow tracking)
+- **Cross-file taint tracking** (follows data flows across imports and modules)
+- **Cross-stack tracing** (links Frontend API calls to Backend routes)
 - **GDPR article mapping** (Art. 5, 6, 9, 32)
 - **Multiple output formats** (JSON, Markdown, HTML)
 - **Ignore file support** (`.privalyseignore` for false positives)
 - **100% Local Execution** (no code leaves your machine)
-- **Zero external dependencies** (core scanner uses only Python stdlib)
 
 ---
 
@@ -117,7 +117,7 @@ When your CTO asks *"Are we GDPR compliant?"*, you can't send them a JSON file. 
 
 ### 2. Focus on Data Flows
 **We find problems even in massive codebases.**
-Privalyse goes beyond simple pattern matching by implementing **Cross-File Taint Tracking**. It traces the journey of sensitive data throughout your application—from database models to API endpoints and logging functions. By understanding how modules interact, we can detect when a variable defined in one file is insecurely used in another, effectively connecting the dots across your entire project structure.
+Privalyse goes beyond simple pattern matching by implementing **Cross-File & Cross-Stack Taint Tracking**. It traces the journey of sensitive data throughout your application—from database models to API endpoints, across network calls to the frontend, and finally to sinks like logging or third-party APIs. By understanding how modules and services interact, we can detect when a variable defined in one file is insecurely used in another, effectively connecting the dots across your entire project structure.
 
 *Note: Visual data flow graphs are on the Roadmap!*
 
