@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="Logo.png" alt="Privalyse Logo" width="200"/>
+  <img src="Banner.png" alt="Privalyse Logo" width="100%"/>
 </p>
 
 # 🔒 Privalyse – Make Invisible Data Flows Visible
