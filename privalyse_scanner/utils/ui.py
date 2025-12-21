@@ -6,6 +6,7 @@ professional CLI experience.
 """
 
 from typing import List, Dict, Any, Optional
+import sys
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
@@ -19,6 +20,20 @@ from ..models.finding import Finding
 
 # Shared console instance
 # Force UTF-8 encoding for Windows compatibility
+if sys.platform == "win32":
+    # Reconfigure stdout/stderr to use utf-8 if possible
+    # This fixes UnicodeEncodeError on Windows terminals (e.g. GitHub Actions)
+    if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
+    if sys.stderr and hasattr(sys.stderr, "reconfigure"):
+        try:
+            sys.stderr.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
+
 console = Console(force_terminal=True, force_interactive=False)
 if console.legacy_windows:
     # Fallback for legacy Windows terminals that don't support full unicode
