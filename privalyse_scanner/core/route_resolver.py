@@ -42,10 +42,16 @@ class RouteResolver:
         return linked_count
 
     def _find_network_sinks(self) -> List[Tuple[GraphNode, str]]:
-        """Find frontend API calls."""
+        """Find network API calls (Frontend fetch/axios or Backend requests)."""
         sinks = []
         for node in self.graph.nodes.values():
+            # Check for JS fetch/axios
             if node.type == 'sink' and ('fetch' in node.label or 'axios' in node.label):
+                url = node.metadata.get('url')
+                if url:
+                    sinks.append((node, url))
+            # Check for Python requests
+            elif node.type == 'sink' and ('requests' in node.label or 'http' in node.label):
                 url = node.metadata.get('url')
                 if url:
                     sinks.append((node, url))

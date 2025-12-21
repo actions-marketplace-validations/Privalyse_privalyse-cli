@@ -598,6 +598,42 @@ class PythonAnalyzer(BaseAnalyzer):
                                                 is_sanitized=True
                                             )
 
+                # 1.5 Check for Generic HTTP Sinks (requests, httpx)
+                is_http_sink = False
+                http_url = None
+                
+                if full_name:
+                    # Check for requests.get, requests.post, etc.
+                    if any(lib in full_name for lib in ['requests.', 'httpx.', 'aiohttp.']):
+                        if any(method in full_name for method in ['.get', '.post', '.put', '.delete', '.request']):
+                            is_http_sink = True
+                            # Try to extract URL
+                            if node.args and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str):
+                                http_url = node.args[0].value
+                            elif node.keywords:
+                                for kw in node.keywords:
+                                    if kw.arg == 'url' and isinstance(kw.value, ast.Constant) and isinstance(kw.value.value, str):
+                                        http_url = kw.value.value
+                
+                if is_http_sink and http_url:
+                    # Check if any argument is tainted
+                    tainted_arg = None
+                    for arg in node.args + [k.value for k in node.keywords]:
+                        if isinstance(arg, ast.Name) and taint_tracker.is_tainted(arg.id):
+                            tainted_arg = arg.id
+                            break
+                    
+                    source_var = tainted_arg if tainted_arg else "unknown_source"
+                    
+                    taint_tracker.data_flow_edges.append(DataFlowEdge(
+                        source_var=source_var,
+                        target_var=f"requests:{full_name}", 
+                        source_line=node.lineno,
+                        target_line=node.lineno,
+                        flow_type="sink",
+                        context=f"URL: {http_url}"
+                    ))
+
                 # 2. Check for AI Sinks
                 is_ai_sink = False
                 sink_type = "unknown"

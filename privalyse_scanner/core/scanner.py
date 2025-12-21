@@ -1,7 +1,7 @@
 """Main scanner orchestration class"""
 
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 import logging
 
 from ..models.config import ScanConfig
@@ -120,21 +120,41 @@ class PrivalyseScanner:
         
         logger.info(f"Starting scan of {self.config.root_path}")
         
-        # Find files to scan
+        # 1. Discover files
+        files = self._discover_files()
+        
+        # 2. Build dependency graph & Initialize symbols
+        dependency_graph = self._build_dependency_graph(files)
+        
+        # 3. Initialize cross-file analyzer
+        self._initialize_cross_file_analyzer()
+        
+        # 4. Analyze files (Single pass)
+        all_findings, all_flows, module_findings = self._analyze_files(files)
+        
+        # 5. Resolve network routes (Frontend -> Backend)
+        self._resolve_cross_file_routes()
+        
+        # 6. Populate structure graph
+        self._populate_structure_graph()
+        
+        # 7. Propagate taint (Cross-module & Cross-network)
+        enhanced_findings = self._propagate_taint(all_findings, module_findings)
+        
+        # 8. Post-process (Compliance mapping, filtering)
+        result = self._post_process_results(enhanced_findings, all_flows, dependency_graph, files)
+        
+        return result
+
+    def _discover_files(self) -> List[Path]:
+        """Discover all files to be scanned."""
         file_iterator = FileIterator(self.config)
         files = list(file_iterator.iter_files())
-        
         logger.info(f"Found {len(files)} files to scan")
-        
-        # Collect findings and flows
-        all_findings: List[Finding] = []
-        all_flows: List[Dict[str, Any]] = []
-        
-        # Extract constants and env variables (simplified for now)
-        consts = {}
-        envmap = {}
-        
-        # Build import dependency graph FIRST (needed for cross-file analysis)
+        return files
+
+    def _build_dependency_graph(self, files: List[Path]) -> Dict[str, Any]:
+        """Build import dependency graph and register symbols."""
         logger.info("Building import dependency graph...")
         for file_path in files:
             analyzer = None
@@ -154,178 +174,124 @@ class PrivalyseScanner:
         dependency_graph = self.import_resolver.build_dependency_graph()
         logger.info(f"Analyzed {len(dependency_graph)} modules with imports")
         logger.info(f"Registered {len(self.symbol_table.symbols)} unique symbols")
-        
-        # Initialize cross-file analyzer
+        return dependency_graph
+
+    def _initialize_cross_file_analyzer(self):
+        """Initialize the cross-file analyzer and connect it to language analyzers."""
         self.cross_file_analyzer = CrossFileAnalyzer(self.import_resolver, self.symbol_table)
         logger.info("Initialized cross-file taint propagation")
         
         # Connect cross-file analyzer to python analyzer
         self.python_analyzer.cross_file_analyzer = self.cross_file_analyzer
         self.javascript_analyzer.cross_file_analyzer = self.cross_file_analyzer
+
+    def _analyze_files(self, files: List[Path]) -> Tuple[List[Finding], List[Dict[str, Any]], Dict[str, List[Finding]]]:
+        """
+        Analyze all files using appropriate analyzers.
+        Returns: (all_findings, all_flows, module_findings)
+        """
+        all_findings: List[Finding] = []
+        all_flows: List[Dict[str, Any]] = []
+        module_findings: Dict[str, List[Finding]] = {}
         
-        # Track module contexts for cross-file analysis
-        module_taint_trackers = {}  # module_name -> TaintTracker
-        module_findings = {}  # module_name -> List[Finding]
+        # Extract constants and env variables (simplified for now)
+        consts = {}
+        envmap = {}
         
         logger.info(f"🔍 STARTING MAIN SCAN LOOP - {len(files)} files to process")
         
-        # Scan each file
         for file_path in files:
             logger.debug(f"  Processing file: {file_path}")
             try:
                 code = file_path.read_text(encoding='utf-8', errors='ignore')
-                logger.debug(f"    Read {len(code)} bytes")
-                logger.debug(f"    Suffix: '{file_path.suffix}' | Python exts: {self.config.python_extensions}")
+                
+                findings = []
+                flows = []
+                module_name = ""
                 
                 if file_path.suffix in self.config.python_extensions:
-                    logger.debug(f"    Detected Python file: {file_path.name}")
-                    # Set current module in analyzer for cross-file context
                     module_name = self.import_resolver._path_to_package_name(file_path)
                     self.python_analyzer.current_module = module_name
                     
                     logger.info(f"Analyzing Python file: {file_path.name}")
-                    
                     findings, flows = self.python_analyzer.analyze_file(
                         file_path, code, consts=consts, envmap=envmap
                     )
                     
-                    # ===== POPULATE GRAPH =====
-                    self._populate_graph(file_path, flows)
-                    
-                    if self.config.verbose:
-                        logger.info(f"  → {len(findings)} findings in {file_path.name}")
-                    
-                    logger.debug(f"  Python analyzer: {len(findings)} findings")
-                    
                     # Run advanced security analyzers
-                    # Pass taint tracker for data flow context
                     taint_tracker = getattr(self.python_analyzer, 'taint_tracker', None)
-                    
                     if self.injection_analyzer:
-                        logger.debug(f"  Running injection analyzer...")
-                        injection_findings = self.injection_analyzer.analyze_file(file_path, code, taint_tracker)
-                        logger.debug(f"  Injection: {len(injection_findings)} findings")
-                        findings.extend(injection_findings)
-                    
+                        findings.extend(self.injection_analyzer.analyze_file(file_path, code, taint_tracker))
                     if self.crypto_analyzer:
-                        logger.debug(f"  Running crypto analyzer...")
-                        crypto_findings = self.crypto_analyzer.analyze_file(file_path, code)
-                        logger.debug(f"  Crypto: {len(crypto_findings)} findings")
-                        findings.extend(crypto_findings)
-                    
+                        findings.extend(self.crypto_analyzer.analyze_file(file_path, code))
                     if self.security_analyzer:
-                        logger.debug(f"  Running security analyzer (cookies, headers)...")
-                        security_findings = self.security_analyzer.analyze_file(file_path, code)
-                        logger.debug(f"  Security: {len(security_findings)} findings")
-                        findings.extend(security_findings)
+                        findings.extend(self.security_analyzer.analyze_file(file_path, code))
+                    
+                    # Register module context
+                    if taint_tracker:
+                        self.cross_file_analyzer.register_module_context(module_name, file_path, taint_tracker)
 
-                    logger.debug(f"  Total after security analyzers: {len(findings)} findings")
-                    
-                    # Register module context for cross-file analysis
-                    if hasattr(self.python_analyzer, 'taint_tracker') and self.python_analyzer.taint_tracker:
-                        self.cross_file_analyzer.register_module_context(
-                            module_name, 
-                            file_path, 
-                            self.python_analyzer.taint_tracker
-                        )
-                        module_taint_trackers[module_name] = self.python_analyzer.taint_tracker
-                    
-                    # Store findings AFTER adding security findings
-                    module_findings[module_name] = findings
-                    all_findings.extend(findings)
-                    all_flows.extend(flows)
-                
                 elif file_path.suffix in {'.js', '.jsx', '.ts', '.tsx'}:
-                    # Analyze JavaScript/TypeScript files
                     logger.info(f"Analyzing JavaScript/TypeScript file: {file_path.name}")
-                    
-                    # Calculate module name for JS
                     module_name = self.import_resolver._path_to_package_name(file_path)
                     
                     findings, flows = self.javascript_analyzer.analyze_file(
                         file_path, code, consts, envmap, module_name=module_name
                     )
                     
-                    # ===== POPULATE GRAPH =====
-                    self._populate_graph(file_path, flows)
-                    
-                    if self.config.verbose:
-                        logger.info(f"  → {len(findings)} findings in {file_path.name}")
-                    
-                    # Store JavaScript findings separately (they don't have module context for cross-file analysis)
-                    # module_name is already set by import_resolver.register_module above
-                    module_findings[module_name] = findings
-                    
-                    # Register module context for cross-file analysis (JS support)
-                    if hasattr(self.javascript_analyzer, 'taint_tracker') and self.javascript_analyzer.taint_tracker:
-                        self.cross_file_analyzer.register_module_context(
-                            module_name, 
-                            file_path, 
-                            self.javascript_analyzer.taint_tracker
-                        )
-                        module_taint_trackers[module_name] = self.javascript_analyzer.taint_tracker
-                    all_findings.extend(findings)
-                    all_flows.extend(flows)
+                    # Register module context
+                    taint_tracker = getattr(self.javascript_analyzer, 'taint_tracker', None)
+                    if taint_tracker:
+                        self.cross_file_analyzer.register_module_context(module_name, file_path, taint_tracker)
+                
+                else:
+                    continue
 
-                elif file_path.name in self.config.docker_files or file_path.suffix in self.config.config_extensions:
-                    # Analyze Infrastructure files
-                    # DISABLED: Infrastructure analysis for PII-only focus
-                    pass
-                    # logger.info(f"Analyzing Infrastructure file: {file_path.name}")
-                    # findings = self.infrastructure_analyzer.analyze_file(file_path, code)
-                    
-                    # if self.config.verbose:
-                    #     logger.info(f"  → {len(findings)} findings in {file_path.name}")
-                    
-                    # # Store findings
-                    # module_name = f"infra:{file_path.name}"
-                    # module_findings[module_name] = findings
-                    # all_findings.extend(findings)
-                    # # No data flows for infra files usually
+                # Common processing
+                self._populate_graph(file_path, flows)
+                
+                if module_name:
+                    module_findings[module_name] = findings
+                
+                all_findings.extend(findings)
+                all_flows.extend(flows)
                 
             except Exception as e:
                 logger.warning(f"Error scanning {file_path}: {e}")
                 continue
-        
-        # Link network flows (JS -> Python)
-        # self.graph.link_network_flows()
+                
+        return all_findings, all_flows, module_findings
+
+    def _resolve_cross_file_routes(self):
+        """Resolve network routes between frontend and backend."""
         resolver = RouteResolver(self.graph)
         links = resolver.resolve_routes()
         logger.info(f"Linked {links} cross-stack network flows")
-        
-        # Populate structure graph (Functions, Classes)
-        self._populate_structure_graph()
-        
-        logger.info(f"Initial scan completed: {len(all_findings)} findings")
-        
-        # Propagate taint across modules
+
+    def _propagate_taint(self, all_findings: List[Finding], module_findings: Dict[str, List[Finding]]) -> List[Finding]:
+        """Propagate taint across modules and network boundaries."""
         logger.info("Propagating taint across module boundaries...")
         self.cross_file_analyzer.propagate_taint_across_all_modules()
         
-        # Re-analyze files with cross-file taint context (second pass)
+        # NEW: Propagate taint across network boundaries
+        self._propagate_network_taint()
+        
         logger.info("Applying symbol table PII intelligence...")
         additional_tainted = 0
         
-        # Use symbol table to identify functions that handle PII or perform sensitive operations
+        # Use symbol table to identify functions that handle PII
         pii_functions = self.symbol_table.find_functions_with_pii_params()
         pii_func_names = {name.split('.')[-1] for name, _ in pii_functions}
-        
-        # Also include all sensitive functions (logging, db, network)
         sensitive_func_names = {name.split('.')[-1] for name in self.symbol_table.sensitive_functions}
-        
         all_sensitive_names = pii_func_names | sensitive_func_names
-        logger.info(f"Found {len(pii_func_names)} PII functions + {len(sensitive_func_names)} sensitive operations = {len(all_sensitive_names)} total")
         
-        for module_name, findings_list in module_findings.items():
+        for findings_list in module_findings.values():
             for finding in findings_list:
                 if not finding.tainted_variables:
-                    # Get snippet from finding
                     snippet = getattr(finding, 'snippet', '') or getattr(finding, 'code_snippet', '')
                     if snippet:
-                        # Check if finding involves a sensitive function
                         for func_name in all_sensitive_names:
-                            if func_name in snippet and len(func_name) > 3:  # Avoid false matches on short names
-                                # This finding involves a sensitive function - mark as tainted
+                            if func_name in snippet and len(func_name) > 3:
                                 finding.tainted_variables = [func_name]
                                 finding.metadata['cross_file_taint'] = True
                                 finding.metadata['sensitive_function'] = func_name
@@ -335,53 +301,105 @@ class PrivalyseScanner:
         
         logger.info(f"Added taint metadata to {additional_tainted} findings via symbol table")
         
-        # Enhance findings with cross-file taint information
+        # Enhance findings
         enhanced_findings = []
         for module_name, findings in module_findings.items():
             enhanced = self.cross_file_analyzer.enhance_findings_with_cross_file_taint(
                 findings, module_name
             )
             enhanced_findings.extend(enhanced)
+            
+        return enhanced_findings
+
+    def _propagate_network_taint(self):
+        """
+        Propagate taint across network edges (Frontend -> Backend).
+        Uses the graph edges created by RouteResolver.
+        """
+        logger.info("Propagating taint across network boundaries...")
+        network_edges = [e for e in self.graph.edges if e.type == 'network_flow']
         
-        # Count findings with taint data (before and after enhancement)
-        initial_tainted = sum(1 for f in all_findings if f.tainted_variables)
-        enhanced_tainted = sum(1 for f in enhanced_findings if f.tainted_variables)
+        count = 0
+        for edge in network_edges:
+            # Source: Frontend call (e.g. fetch)
+            # Target: Backend route (e.g. api_handler)
+            
+            source_node = self.graph.nodes.get(edge.source_id)
+            target_node = self.graph.nodes.get(edge.target_id)
+            
+            if not source_node or not target_node:
+                continue
+                
+            # Check if source node involves tainted data
+            # We need to find the module context for the source file
+            source_file = Path(source_node.file_path)
+            source_module = self.import_resolver._path_to_package_name(source_file)
+            
+            source_context = self.cross_file_analyzer.module_contexts.get(source_module)
+            if not source_context:
+                continue
+                
+            # Check if the variable used in the source node is tainted
+            # The node label is often the variable name
+            var_name = source_node.label
+            taint_info = source_context.local_taint.get_taint(var_name)
+            
+            if taint_info:
+                # Propagate to target
+                target_file = Path(target_node.file_path)
+                target_module = self.import_resolver._path_to_package_name(target_file)
+                target_context = self.cross_file_analyzer.module_contexts.get(target_module)
+                
+                if target_context:
+                    # Mark the target route handler's input as tainted
+                    # Usually the target node label is the function name or 'request'
+                    target_var = target_node.label
+                    
+                    logger.info(f"🔥 Network Taint Propagation: {source_module}.{var_name} -> {target_module}.{target_var}")
+                    
+                    # Create a new taint info for the target
+                    from ..models.taint import TaintInfo
+                    new_taint = TaintInfo(
+                        source=f"Network:{source_module}.{var_name}",
+                        source_type="network_propagation",
+                        line_number=target_node.line_number
+                    )
+                    target_context.local_taint.add_taint(target_var, new_taint)
+                    count += 1
         
-        logger.info(f"Taint enhancement: {initial_tainted} -> {enhanced_tainted} findings with taint data")
-        logger.info(f"Scan completed: {len(enhanced_findings)} findings")
-        
-        # Use enhanced findings
-        all_findings = enhanced_findings
-        
+        logger.info(f"Propagated taint across {count} network boundaries")
+
+    def _post_process_results(self, findings: List[Finding], flows: List[Dict[str, Any]], 
+                             dependency_graph: Dict[str, Any], files: List[Path]) -> Dict[str, Any]:
+        """Format and filter results."""
         # Filter ignored findings
-        all_findings = [f for f in all_findings if not self._should_ignore(f)]
+        filtered_findings = [f for f in findings if not self._should_ignore(f)]
         
-        # Map findings to compliance data (GDPR articles, PII types, TOMs)
+        # Map to compliance
         findings_with_compliance = []
-        for finding in all_findings:
+        for finding in filtered_findings:
             finding_dict = finding.to_dict()
             compliance_data = map_finding_to_compliance(finding_dict, finding.rule)
             finding_dict['compliance_mapping'] = compliance_data
             findings_with_compliance.append(finding_dict)
+            
+        # Calculate stats
+        initial_tainted = sum(1 for f in findings if f.tainted_variables) # Approximation
         
-        # Build result
         return {
             "findings": findings_with_compliance,
-            "flows": all_flows,
+            "flows": flows,
             "meta": {
                 "files_scanned": len(files),
-                "total_findings": len(all_findings),
+                "total_findings": len(filtered_findings),
                 "root_path": str(self.config.root_path),
                 "modules_analyzed": len(dependency_graph),
                 "import_relationships": sum(len(deps) for deps in dependency_graph.values()),
                 "symbols_registered": len(self.symbol_table.symbols),
                 "sensitive_functions": len(self.symbol_table.sensitive_functions),
-                "taint_coverage_initial": initial_tainted,
-                "taint_coverage_enhanced": enhanced_tainted,
-                "taint_coverage_improvement": f"{((enhanced_tainted - initial_tainted) / max(1, initial_tainted)) * 100:.1f}%",
             },
-            "compliance": self._calculate_compliance(all_findings),
-            "dependency_graph": dependency_graph,  # Include graph in results
+            "compliance": self._calculate_compliance(filtered_findings),
+            "dependency_graph": dependency_graph,
             "semantic_graph": self.graph.to_dict(),
         }
     
