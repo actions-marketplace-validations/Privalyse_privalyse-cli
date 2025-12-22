@@ -37,6 +37,16 @@ privalyse
 
 ## 🔄 Continuous Monitoring (CI/CD)
 
+## 👁️ Data Flow Visibility & Monitoring
+
+Modern applications are complex webs of data movement. Privalyse provides **Data Flow Visibility** to help you oversee where sensitive data travels.
+
+### Continuous Monitoring
+Privalyse is designed to be run in your CI/CD pipeline to provide continuous monitoring of data flows.
+*   **Detect**: Catch new leaks before they merge.
+*   **Visualize**: See the path of data from Source to Sink.
+*   **Comply**: Ensure every data flow has a legal basis.
+
 To achieve true visibility, Privalyse should be part of your continuous integration pipeline. This ensures that every code change is monitored for new data leaks.
 
 ### GitHub Actions Example
@@ -62,6 +72,8 @@ jobs:
           name: privacy-report
           path: report.md
 ```
+
+The generated `report.md` is a **human-readable Markdown report** that you can view directly in GitHub Actions artifacts or attach to Pull Requests. It provides a clear, visual summary of all findings, compliance risks, and data flow stories.
 
 ## Installation
 

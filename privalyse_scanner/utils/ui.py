@@ -50,7 +50,7 @@ def print_banner():
     except UnicodeEncodeError:
         title = Text("Privalyse Scanner", style="bold cyan")
         
-    subtitle = Text("Privacy & GDPR Compliance Intelligence", style="italic white")
+    subtitle = Text("Data Flow Visibility & Detection Engine", style="italic white")
     
     console.print(Panel(
         Text.assemble(title, "\n", subtitle),
@@ -94,8 +94,17 @@ def print_findings_summary(findings: List[Finding], score_data: Dict[str, Any]):
     elif score < 80: color = "yellow"
     
     score_text = Text(f"{score}/100", style=f"bold {color}")
+    
+    # Monitoring Status
+    monitor_status = "✅ Secure" if score >= 80 else "❌ At Risk"
+    monitor_color = "green" if score >= 80 else "red"
+    
     console.print(Panel(
-        Text.assemble("Compliance Score: ", score_text, f" ({status})"),
+        Text.assemble(
+            "Compliance Score: ", score_text, f" ({status})\n",
+            "Monitoring Status: ", Text(monitor_status, style=f"bold {monitor_color}"), "\n",
+            Text("Data Flow Visibility: ", style="bold white"), Text("Active", style="bold green")
+        ),
         title="Scan Results",
         border_style=color
     ))
