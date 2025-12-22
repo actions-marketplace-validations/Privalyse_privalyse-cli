@@ -21,6 +21,7 @@ from .symbol_table import GlobalSymbolTable, SymbolType
 from .route_resolver import RouteResolver
 from ..utils.compliance_mapper import map_finding_to_compliance
 from .score_recommendation import get_score_recommendation
+from .sink_resolver import SinkResolver
 
 
 logger = logging.getLogger(__name__)
@@ -58,6 +59,9 @@ class PrivalyseScanner:
         
         # Semantic Data Flow Graph
         self.graph = SemanticDataFlowGraph()
+        
+        # Sink Resolver for Data Sovereignty
+        self.sink_resolver = SinkResolver()
         
         # Load ignore list
         self.ignore_list = self._load_ignore_list()
@@ -268,6 +272,51 @@ class PrivalyseScanner:
         links = resolver.resolve_routes()
         logger.info(f"Linked {links} cross-stack network flows")
 
+    def _enrich_findings_with_sink_info(self, findings: List[Finding]) -> List[Finding]:
+        """
+        Enrich findings with Sink Intelligence (Data Sovereignty).
+        Checks if findings contain URLs that match known sinks.
+        """
+        enriched_count = 0
+        for finding in findings:
+            # Check snippet for URLs
+            # This is a simple heuristic. Ideally, we'd use the AST or Taint Sink info.
+            snippet = finding.snippet
+            if not snippet:
+                continue
+                
+            # Simple regex to find URLs in snippet
+            import re
+            urls = re.findall(r'https?://[^\s"\']+', snippet)
+            
+            for url in urls:
+                sink_info = self.sink_resolver.resolve(url)
+                if sink_info:
+                    # Add to metadata
+                    if 'sink_intelligence' not in finding.metadata:
+                        finding.metadata['sink_intelligence'] = []
+                    
+                    finding.metadata['sink_intelligence'].append({
+                        "url": url,
+                        "provider": sink_info.provider,
+                        "country": sink_info.country,
+                        "category": sink_info.category,
+                        "gdpr_risk": sink_info.gdpr_risk,
+                        "notes": sink_info.notes
+                    })
+                    
+                    # Update finding description or classification if needed
+                    if sink_info.gdpr_risk == 'high':
+                        finding.severity = 'high' # Elevate risk
+                        finding.classification.reasoning += f" [Data Sovereignty Risk: Data sent to {sink_info.provider} ({sink_info.country})]"
+                    
+                    enriched_count += 1
+        
+        if enriched_count > 0:
+            logger.info(f"Enriched {enriched_count} findings with Sink Intelligence")
+            
+        return findings
+
     def _propagate_taint(self, all_findings: List[Finding], module_findings: Dict[str, List[Finding]]) -> List[Finding]:
         """Propagate taint across modules and network boundaries."""
         logger.info("Propagating taint across module boundaries...")
@@ -308,6 +357,9 @@ class PrivalyseScanner:
                 findings, module_name
             )
             enhanced_findings.extend(enhanced)
+            
+        # NEW: Enrich with Sink Intelligence
+        enhanced_findings = self._enrich_findings_with_sink_info(enhanced_findings)
             
         return enhanced_findings
 
