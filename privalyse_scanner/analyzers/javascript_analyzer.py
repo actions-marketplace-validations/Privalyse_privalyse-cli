@@ -12,6 +12,7 @@ except ImportError:
 
 from ..models.finding import Finding, ClassificationResult
 from ..models.taint import DataFlowEdge, TaintInfo
+from ..utils.helpers import extract_context_lines
 from .base_analyzer import BaseAnalyzer, AnalyzedSymbol, AnalyzedImport
 
 logger = logging.getLogger(__name__)
@@ -458,7 +459,7 @@ class JavaScriptAnalyzer(BaseAnalyzer):
                 
                 # Handle Call Expressions (Sinks): sink(tainted)
                 elif node.type == 'CallExpression':
-                    self._analyze_call(node, node.loc.start.line, findings, file_path.as_posix())
+                    self._analyze_call(node, node.loc.start.line, findings, file_path.as_posix(), code)
                 
                 # Recursively visit children
                 for key, value in node.items():
@@ -501,7 +502,7 @@ class JavaScriptAnalyzer(BaseAnalyzer):
                 target_name, ['api_data'], source_name, context="fetch_response"
             )
 
-    def _analyze_call(self, node, line, findings, file_path):
+    def _analyze_call(self, node, line, findings, file_path, code):
         """Analyze function call for sinks."""
         func_name = self._get_node_name(node.callee)
         if not func_name: return
@@ -512,6 +513,10 @@ class JavaScriptAnalyzer(BaseAnalyzer):
                 arg_name = self._get_node_name(arg)
                 if arg_name and self.taint_tracker.is_tainted(arg_name):
                     info = self.taint_tracker.get_taint_info(arg_name)
+                    
+                    # Get context
+                    ctx_lines, ctx_start, ctx_end = extract_context_lines(code, node)
+                    
                     findings.append(Finding(
                         rule="LOG_PII",
                         file=file_path,
@@ -527,7 +532,13 @@ class JavaScriptAnalyzer(BaseAnalyzer):
                             legal_basis_required=True,
                             sectors=[],
                             reasoning=f"Tainted variable '{arg_name}' logged to console"
-                        )
+                        ),
+                        suggested_fix="Remove PII from logs or use a sanitizer/masking function.",
+                        confidence_score=0.8,
+                        context_start_line=ctx_start,
+                        context_end_line=ctx_end,
+                        code_context=ctx_lines
+                    ))
                     ))
 
     def _get_node_name(self, node):
@@ -633,6 +644,11 @@ class JavaScriptAnalyzer(BaseAnalyzer):
                     # print(f"DEBUG: Matched token with confidence 0.9")
                 
                 if secret_type:
+                    # Get context
+                    start_idx = max(0, i - 2)
+                    end_idx = min(len(lines), i + 3)
+                    ctx_lines = lines[start_idx:end_idx]
+
                     findings.append(Finding(
                         rule="HARDCODED_SECRET",
                         severity="critical" if confidence > 0.8 else "high",
@@ -649,7 +665,12 @@ class JavaScriptAnalyzer(BaseAnalyzer):
                             confidence=confidence,
                             reasoning=f"Hardcoded {secret_type} detected in variable '{var_name}'",
                             gdpr_articles=["Art. 32"]
-                        )
+                        ),
+                        suggested_fix="Move secret to environment variable (process.env) or secrets manager.",
+                        confidence_score=confidence,
+                        context_start_line=start_idx + 1,
+                        context_end_line=end_idx,
+                        code_context=ctx_lines
                     ))
                     
         return findings

@@ -64,6 +64,13 @@ class Finding:
     source_node: Optional[str] = None
     sink_node: Optional[str] = None
     flow_path: List[str] = field(default_factory=list)
+
+    # AI Agent Context
+    suggested_fix: Optional[str] = None
+    confidence_score: float = 1.0
+    context_start_line: Optional[int] = None
+    context_end_line: Optional[int] = None
+    code_context: List[str] = field(default_factory=list)
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
@@ -103,4 +110,15 @@ class Finding:
         if self.flow_path:
             result["flow_path"] = self.flow_path
         
+        # Add AI Agent fields
+        if self.suggested_fix:
+            result["suggested_fix"] = self.suggested_fix
+        result["confidence_score"] = self.confidence_score
+        if self.context_start_line:
+            result["context_start_line"] = self.context_start_line
+        if self.context_end_line:
+            result["context_end_line"] = self.context_end_line
+        if self.code_context:
+            result["code_context"] = self.code_context
+
         return result

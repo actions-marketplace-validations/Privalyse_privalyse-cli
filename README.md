@@ -89,6 +89,39 @@ pip install privalyse-cli && privalyse --root . --out report.md && cat report.md
 
 ---
 
+## 🤖 AI Agent Integration
+
+Privalyse is designed to be "Agent-Ready". If you are building an AI coding agent or using LLMs to fix code, Privalyse provides structured, context-rich output that agents can understand.
+
+### For Coding Agents
+When using Privalyse as a tool for an agent:
+1.  **Run with JSON output**: `privalyse --format json --out report.json`
+2.  **Parse the `findings` array**: Each finding now includes:
+    *   `code_context`: The actual lines of code (with surrounding context) where the issue was found.
+    *   `context_start_line` / `context_end_line`: Precise line numbers.
+    *   `suggested_fix`: A human-readable suggestion for fixing the issue.
+    *   `confidence_score`: To help the agent decide whether to act.
+
+### Example JSON Output for Agents
+```json
+{
+  "rule": "HARDCODED_SECRET",
+  "file": "src/config.py",
+  "line": 15,
+  "severity": "critical",
+  "suggested_fix": "Move secret to environment variable (os.environ.get) or secrets manager.",
+  "confidence_score": 1.0,
+  "code_context": [
+    "def connect_db():",
+    "    db_password = \"super_secret_password_123\"  # <--- Finding here",
+    "    return connect(password=db_password)"
+  ]
+}
+```
+This allows agents to **self-correct** code without needing to read the file separately.
+
+---
+
 ## What It Does
 
 Privalyse performs static analysis to detect:

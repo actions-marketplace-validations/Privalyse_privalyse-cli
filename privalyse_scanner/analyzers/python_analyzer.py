@@ -8,7 +8,7 @@ from pathlib import Path
 from ..models.finding import Finding, Severity, ClassificationResult
 from ..models.taint import TaintTracker, DataFlowEdge
 from ..utils.classification import classify_pii_enhanced
-from ..utils.helpers import extract_ast_snippet, should_filter_log_finding, should_filter_db_finding
+from ..utils.helpers import extract_ast_snippet, extract_context_lines, should_filter_log_finding, should_filter_db_finding
 from ..config.framework_patterns import (
     get_db_result_methods,
     get_db_write_methods,
@@ -363,6 +363,9 @@ class PythonAnalyzer(BaseAnalyzer):
                                 # Completely mask the secret value
                                 snippet = f'{target_name} = "***"'
                                 
+                                # Get context
+                                ctx_lines, ctx_start, ctx_end = extract_context_lines(code, node)
+                                
                                 findings.append(Finding(
                                     rule="HARDCODED_SECRET",
                                     file=file_path.as_posix(),
@@ -379,6 +382,12 @@ class PythonAnalyzer(BaseAnalyzer):
                                         confidence=confidence,
                                         reasoning=f"Hardcoded {secret_type} violates Art. 32 security requirements"
                                     ),
+                                    suggested_fix="Move secret to environment variable (os.environ.get) or secrets manager.",
+                                    confidence_score=confidence,
+                                    context_start_line=ctx_start,
+                                    context_end_line=ctx_end,
+                                    code_context=ctx_lines
+                                )),
                                     metadata={
                                         'description': f'Hardcoded {secret_type} detected in source code',
                                         'variable': target_name,
@@ -989,6 +998,9 @@ class PythonAnalyzer(BaseAnalyzer):
                     elif tainted_args:
                         severity = "high" if severity == "medium" else severity
                     
+                    # Get context
+                    ctx_lines, ctx_start, ctx_end = extract_context_lines(code, node)
+
                     finding = Finding(
                         rule=rule_id,
                         severity=Severity(severity),
@@ -1005,7 +1017,13 @@ class PythonAnalyzer(BaseAnalyzer):
                         ] if tainted_args else [],
                         # Graph Info
                         sink_node="logging",
-                        flow_path=tainted_args
+                        flow_path=tainted_args,
+                        # AI Agent Info
+                        suggested_fix="Remove PII from logs or use a sanitizer/masking function.",
+                        confidence_score=classification["confidence"],
+                        context_start_line=ctx_start,
+                        context_end_line=ctx_end,
+                        code_context=ctx_lines
                     )
                     
                     # Add Sink Edges
