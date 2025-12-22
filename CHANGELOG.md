@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.2.0] - 2025-12-21 - Beta Release
+## [0.2.1] - 2025-12-22 - Beta Release
 
 Major update introducing "Flow Stories" and enhanced data flow visibility.
 
