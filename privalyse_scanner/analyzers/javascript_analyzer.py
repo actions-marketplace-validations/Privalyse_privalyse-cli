@@ -527,6 +527,56 @@ class JavaScriptAnalyzer(BaseAnalyzer):
         func_name = self._get_node_name(node.callee)
         if not func_name: return
         
+        # 2. AI SDK Sinks (LangChain, OpenAI)
+        # e.g. openai.createCompletion({ prompt: user_input })
+        # e.g. chain.call({ input: user_input })
+        is_ai_sink = False
+        sink_provider = "unknown"
+        
+        if any(x in func_name for x in ['openai.create', 'chain.call', 'chain.invoke', 'model.predict', 'llm.call']):
+            is_ai_sink = True
+            sink_provider = "AI_Model"
+            if 'openai' in func_name: sink_provider = "OpenAI"
+            if 'chain' in func_name: sink_provider = "LangChain"
+            
+        if is_ai_sink:
+            # Check arguments (usually an object)
+            for arg in node.arguments:
+                # If arg is an object literal { prompt: x }
+                if arg.type == 'ObjectExpression':
+                    for prop in arg.properties:
+                        if prop.value.type == 'Identifier':
+                            val_name = prop.value.name
+                            if self.taint_tracker.is_tainted(val_name):
+                                info = self.taint_tracker.get_taint_info(val_name)
+                                if not info.is_sanitized:
+                                    ctx_lines, ctx_start, ctx_end = extract_context_lines(code, node)
+                                    findings.append(Finding(
+                                        rule="AI_PII_LEAK",
+                                        file=file_path,
+                                        line=line,
+                                        snippet=f"{func_name}({{ ... {val_name} ... }})",
+                                        severity="critical",
+                                        classification=ClassificationResult(
+                                            pii_types=info.pii_types,
+                                            category="ai_leak",
+                                            severity="critical",
+                                            confidence=0.95,
+                                            article="Art. 9",
+                                            legal_basis_required=True,
+                                            sectors=["ai"],
+                                            reasoning=f"Unsanitized PII ({', '.join(info.pii_types)}) sent to AI Sink ({sink_provider})"
+                                        ),
+                                        suggested_fix=f"Sanitize data before sending to AI model.",
+                                        code_context=ctx_lines,
+                                        context_start_line=ctx_start,
+                                        context_end_line=ctx_end
+                                    ))
+                                    
+                                    self.taint_tracker.add_edge(
+                                        val_name, f"AI_SINK:{sink_provider}", line, "sink", context=f"AI Provider: {sink_provider}"
+                                    )
+
         # 1. Logging Sinks
         if func_name in ['console.log', 'console.error', 'logger.info']:
             for arg in node.arguments:

@@ -63,8 +63,9 @@ AI_SINKS = {
     'openai': ['Completion.create', 'ChatCompletion.create', 'Embedding.create', 'chat.completions.create', 'embeddings.create'],
     'anthropic': ['completions.create', 'messages.create'],
     'cohere': ['generate', 'embed', 'chat'],
-    'langchain': ['predict', 'run', 'call', 'invoke', 'stream'],
+    'langchain': ['predict', 'run', 'call', 'invoke', 'stream', 'ainvoke', 'astream'],
     'huggingface': ['pipeline', 'inference'],
+    'transformers': ['generate', '__call__'],
     'requests': ['post', 'get', 'put', 'request'], # Generic HTTP
     'httpx': ['post', 'get', 'put', 'request'],
     'aiohttp': ['post', 'get', 'put', 'request']
@@ -697,7 +698,9 @@ class PythonAnalyzer(BaseAnalyzer):
                                         legal_basis_required=True,
                                         sectors=["ai"],
                                         reasoning=f"Unsanitized PII ({', '.join(info.pii_types)}) sent to AI Sink ({sink_type})"
-                                    )
+                                    ),
+                                    suggested_fix=f"Sanitize data before sending to AI model. Use `anonymize({var_name})` or similar.",
+                                    code_context=extract_context_lines(code, node)[0]
                                 ))
                                 
                                 taint_tracker.data_flow_edges.append(DataFlowEdge(
