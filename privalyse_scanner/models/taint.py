@@ -286,8 +286,13 @@ class TaintTracker:
             if self.is_tainted(source.value):
                 # Get key if it's a string
                 key = None
-                if isinstance(source.slice, ast.Constant):
-                    key = source.slice.value
+                
+                slice_node = source.slice
+                if hasattr(ast, 'Index') and isinstance(slice_node, ast.Index):
+                    slice_node = slice_node.value
+                
+                if isinstance(slice_node, ast.Constant):
+                    key = slice_node.value
                 
                 if key:
                     pii_types = self.infer_pii_type(str(key))

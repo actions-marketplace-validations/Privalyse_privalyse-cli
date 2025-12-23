@@ -453,8 +453,13 @@ class PythonAnalyzer(BaseAnalyzer):
                                 if taint_tracker.is_tainted(node.value.value):
                                     is_container_tainted = True
                             
-                            if isinstance(node.value.slice, ast.Constant):
-                                key = str(node.value.slice.value)
+                            # Handle Python 3.8 vs 3.9+ AST differences
+                            slice_node = node.value.slice
+                            if hasattr(ast, 'Index') and isinstance(slice_node, ast.Index):
+                                slice_node = slice_node.value
+                            
+                            if isinstance(slice_node, ast.Constant):
+                                key = str(slice_node.value)
                                 pii_types = taint_tracker.infer_pii_type(key)
                                 
                                 # If container is tainted OR key implies PII, mark as tainted
