@@ -692,7 +692,7 @@ class PythonAnalyzer(BaseAnalyzer):
                                     rule="AI_PII_LEAK",
                                     file=file_path.as_posix(),
                                     line=node.lineno,
-                                    snippet=extract_ast_snippet(code, node.lineno, node.lineno),
+                                    snippet=extract_ast_snippet(code, node),
                                     severity=Severity.CRITICAL,
                                     classification=ClassificationResult(
                                         pii_types=info.pii_types,
@@ -753,7 +753,7 @@ class PythonAnalyzer(BaseAnalyzer):
                                     rule="PRINT_SENSITIVE_DATA",
                                     file=file_path.as_posix(),
                                     line=node.lineno,
-                                    snippet=extract_ast_snippet(code, node.lineno, node.lineno),
+                                    snippet=extract_ast_snippet(code, node),
                                     severity=Severity.HIGH,
                                     classification=ClassificationResult(
                                         pii_types=list(detected_high_risk),
@@ -821,7 +821,7 @@ class PythonAnalyzer(BaseAnalyzer):
                                 # Hardcoded string passed as password/secret - CRITICAL
                                 secret_value = kw.value.value
                                 if len(secret_value) > 3:  # Skip empty/placeholder values
-                                    snippet = extract_ast_snippet(code, node.lineno, node.lineno)
+                                    snippet = extract_ast_snippet(code, node)
                                     findings.append(Finding(
                                         rule="HARDCODED_CREDENTIAL_IN_CALL",
                                         file=file_path.as_posix(),
@@ -846,7 +846,7 @@ class PythonAnalyzer(BaseAnalyzer):
                                 taint_info = taint_tracker.get_taint_info(kw.value)
                                 if taint_info and taint_info.taint_source and 'hardcoded_secret' in taint_info.taint_source:
                                     # Variable comes from hardcoded secret - report it
-                                    snippet = extract_ast_snippet(code, node.lineno, node.lineno)
+                                    snippet = extract_ast_snippet(code, node)
                                     findings.append(Finding(
                                         rule="HARDCODED_SECRET_PROPAGATION",
                                         file=file_path.as_posix(),

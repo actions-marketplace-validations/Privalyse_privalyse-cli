@@ -12,7 +12,7 @@ Package Structure:
 - utils: Helper functions and utilities
 """
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 __author__ = "Privalyse Team"
 
 from .core.scanner import PrivalyseScanner
