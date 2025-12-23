@@ -35,6 +35,17 @@ privalyse
 
 ---
 
+## ✨ AI-Native Privacy & Guardrails (New in v0.3.0)
+
+Privalyse now includes specialized features for AI-Model integrations:
+
+*   **🤖 AI Guardrails**: Detects PII leaking into LLM prompts (OpenAI, LangChain, etc.).
+*   **🌍 Data Sovereignty**: Flags data transfers to non-EU providers (AWS, Azure, OpenAI) to help with GDPR compliance.
+*   **🛡️ Policy as Code**: Enforce blocked countries or providers via `privalyse.toml`.
+*   **🧼 Smart Sanitization**: Recognizes `hash()`, `anonymize()` and other cleaning functions to reduce false positives.
+
+---
+
 ## 🔄 Continuous Monitoring (CI/CD)
 
 ## 👁️ Data Flow Visibility & Monitoring
@@ -96,6 +107,19 @@ privalyse --root ./backend --format json --out results.json
 # Output as HTML (Visual Dashboard)
 privalyse --root ./backend --format html --out report.html
 ```
+
+## ⚙️ Configuration (Policy as Code)
+
+You can enforce privacy policies using a `privalyse.toml` file in your project root.
+
+```toml
+# privalyse.toml
+[policy]
+blocked_countries = ["US", "CN"]  # Fail if data flows to these countries
+blocked_providers = ["openai"]    # Fail if data flows to these providers
+```
+
+When a policy violation is detected (e.g., sending PII to a US server), Privalyse will report a **CRITICAL** finding and exit with a failure code.
 
 ## 🎥 See It In Action
 

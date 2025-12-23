@@ -1,0 +1,31 @@
+# Privalyse Configuration Example
+# Rename this file to 'privalyse.toml' to activate it.
+
+[policy]
+# Block data flows to specific countries (ISO 3166-1 alpha-2 codes)
+# Example: Block transfers to US and China due to data sovereignty concerns
+blocked_countries = ["US", "CN", "RU"]
+
+# Block specific providers/sinks
+# Available providers: "openai", "aws", "azure", "gcp", "anthropic", "cohere"
+# Example: Block OpenAI if you only want to use local models
+blocked_providers = ["openai"]
+
+# Require sanitization (e.g. anonymize(), hash()) before sending PII to AI models
+# If true, sending raw PII to an AI sink will be a CRITICAL finding.
+require_sanitization_for_ai = true
+
+[scanner]
+# Ignore specific directories (glob patterns)
+ignore_patterns = [
+    "tests/**",
+    "venv/**",
+    "**/node_modules/**",
+    "dist/**"
+]
+
+# Customize severity levels for specific rules
+[severity]
+HARDCODED_SECRET = "CRITICAL"
+PII_LEAK = "HIGH"
+AI_PII_LEAK = "CRITICAL"

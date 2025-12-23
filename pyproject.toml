@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "privalyse-cli"
-version = "0.2.1"
+version = "0.3.0"
 description = "Privacy scanner with GDPR compliance reports - Zero config, instant insights"
 readme = "README.md"
 authors = [

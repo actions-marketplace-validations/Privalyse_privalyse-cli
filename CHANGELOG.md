@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.3.0] - 2025-12-22 - The AI-Native Privacy Release
+
+Major release introducing AI Guardrails, Data Sovereignty checks, and Policy as Code.
+
+### Features
+- **AI Guardrails**: Detects PII leaks to LLMs (OpenAI, LangChain, Anthropic).
+- **Data Sovereignty**: Flags data transfers to non-EU providers (AWS, Azure, OpenAI).
+- **Policy as Code**: Enforce blocked countries/providers via `privalyse.toml`.
+- **Smart Sanitization**: Recognizes cleaning functions (`hash`, `anonymize`) to reduce false positives.
+
+### Improvements
+- **Config Loader**: Support for `privalyse.toml` and `pyproject.toml`.
+- **Enhanced Taint Tracking**: Better support for `requests` and `httpx`.
+- **Critical Alerts**: Policy violations now trigger CRITICAL severity findings.
+
 ## [0.2.1] - 2025-12-22 - Beta Release
 
 Major update introducing "Flow Stories" and enhanced data flow visibility.
