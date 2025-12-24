@@ -1,5 +1,5 @@
-name: 'Privalyse Privacy Scanner'
-description: 'Scan your code for privacy leaks, PII, and GDPR violations.'
+name: 'Privalyse Security Scan'
+description: 'Scan your code for PII leaks, GDPR violations, and AI security risks.'
 author: 'Privalyse'
 branding:
   icon: 'shield'
@@ -9,26 +9,21 @@ inputs:
     description: 'Root directory to scan'
     required: false
     default: '.'
+  out:
+    description: 'Output file path'
+    required: false
+    default: 'privalyse_report.md'
   format:
     description: 'Output format (markdown, json, html)'
     required: false
     default: 'markdown'
-  output:
-    description: 'Output file path'
-    required: false
-    default: 'scan_results.md'
 runs:
   using: "composite"
   steps:
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
-    
     - name: Install Privalyse
       shell: bash
       run: pip install privalyse-cli
-      
-    - name: Run Privalyse Scanner
+
+    - name: Run Scan
       shell: bash
-      run: privalyse --root "${{ inputs.root }}" --format "${{ inputs.format }}" --out "${{ inputs.output }}"
+      run: privalyse --root ${{ inputs.root }} --out ${{ inputs.out }} --format ${{ inputs.format }}

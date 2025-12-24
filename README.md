@@ -71,11 +71,11 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Run Privalyse Scanner
-        uses: privalyse/privalyse-cli@v0.3.0
+        uses: privalyse/privalyse-cli@v0.3.1
         with:
           root: '.'
+          out: 'report.md'
           format: 'markdown'
-          output: 'report.md'
           
       - name: Upload Report
         uses: actions/upload-artifact@v4

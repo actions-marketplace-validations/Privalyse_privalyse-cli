@@ -55,7 +55,7 @@ class ScanConfig:
     exclude_patterns: List[str] = field(default_factory=lambda: [
         "*/node_modules/*", "*/venv/*", "*/env/*", "*/.venv/*", "*/dist/*",
         "*/build/*", "*/__pycache__/*", "*/.git/*", "*/site-packages/*",
-        "*/demo_stage/*", "*/tests/*", "*/scan_results.json"
+        "*/demo_stage/*", "*/scan_results.json"
     ])
     
     # Policy
