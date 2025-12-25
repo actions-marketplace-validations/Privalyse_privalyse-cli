@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="Banner.png" alt="Privalyse Logo" width="100%"/>
+  <img src="https://privalyse.com/assets/github-privalyse-cli-readme-banner.png" alt="Privalyse Logo" width="100%"/>
 </p>
 
 # 🔒 Privalyse – Catch Privcay Leaks in AI-Assisted Codebases
@@ -123,7 +123,7 @@ When a policy violation is detected (e.g., sending PII to a US server), Privalys
 
 ## 🎥 See It In Action
 
-![Privalyse CLI Demo](https://raw.githubusercontent.com/privalyse/privalyse-cli/main/demo.gif)
+![Privalyse CLI Demo](https://privalyse.com/assets/github-privalyse-cli-demo.gif)
 
 ## 📊 Example Reports
 

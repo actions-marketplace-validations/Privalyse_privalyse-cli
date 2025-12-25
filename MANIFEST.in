@@ -18,6 +18,7 @@ prune database
 prune redis
 prune monitoring
 prune docker
+prune public
 prune logs
 prune storage
 prune .github
