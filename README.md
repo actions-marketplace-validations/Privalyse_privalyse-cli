@@ -13,7 +13,7 @@
   <a href="https://pepy.tech/project/privalyse-cli"><img src="https://pepy.tech/badge/privalyse-cli/month" alt="Downloads"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
   <a href="https://github.com/Privalyse/privalyse-cli/actions/workflows/test.yml"><img src="https://github.com/Privalyse/privalyse-cli/actions/workflows/test.yml/badge.svg" alt="Tests"></a>
-  <a href="https://pypi.org/project/privalyse-cli/"><img src="https://img.shields.io/pypi/pyversions/privalyse-cli.svg" alt="Python Versions"></a>
+  <a href="https://pypi.org/project/privalyse-cli/"><img src="https://img.shields.io/badge/python-3.8+-blue.svg" alt="Python Versions"></a>
 </p>
 
 <p align="center">
