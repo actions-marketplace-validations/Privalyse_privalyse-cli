@@ -2,303 +2,137 @@
   <img src="https://privalyse.com/assets/github-privalyse-cli-readme-banner.png" alt="Privalyse Logo" width="100%"/>
 </p>
 
-# 🔒 Privalyse – Catch Privcay Leaks in AI-Assisted Codebases
+<h1 align="center">The Linter for Privacy</h1>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![PyPI](https://img.shields.io/pypi/v/privalyse-cli)](https://pypi.org/project/privalyse-cli/)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![X Follow](https://img.shields.io/twitter/follow/privalyse_dev?style=social)](https://x.com/privalyse_dev)
+<p align="center">
+  <b>Catch PII leaks & secrets before they hit production.</b>
+</p>
 
-> **Code can be a a black box. Data moves through invisible paths.**
-> **Privalyse makes these paths explicit.**
+<p align="center">
+  <a href="https://badge.fury.io/py/privalyse-cli"><img src="https://badge.fury.io/py/privalyse-cli.svg" alt="PyPI version"></a>
+  <a href="https://pepy.tech/project/privalyse-cli"><img src="https://pepy.tech/badge/privalyse-cli/month" alt="Downloads"></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+  <a href="https://github.com/Privalyse/privalyse-cli/actions/workflows/test.yml"><img src="https://github.com/Privalyse/privalyse-cli/actions/workflows/test.yml/badge.svg" alt="Tests"></a>
+  <a href="https://pypi.org/project/privalyse-cli/"><img src="https://img.shields.io/pypi/pyversions/privalyse-cli.svg" alt="Python Versions"></a>
+</p>
 
-We are generating code faster than ever, but we are losing sight of where our data actually goes.
-LLMs write logic, but they don't see the flow. They happily pipe PII into logs, send secrets to third-party APIs, or expose internal state.
+<p align="center">
+  <img src="https://privalyse.com/assets/demo.gif" alt="Privalyse Demo" width="100%"/>
+</p>
 
-**Privalyse is not just a linter.** It builds a **Semantic Data Flow Graph** of your application to tell **Flow Stories**:
+---
+
+**Privalyse** is a static analysis tool that builds a **Semantic Data Flow Graph** of your application. It traces data from source to sink to detect privacy violations that regex-based tools miss.
+
 *   ❌ *Traditional Linter:* "Variable `user_email` used in line 42."
 *   ✅ *Privalyse:* "User Email (Source) → Prompt Template → OpenAI API (Sink) → Logs (Leak)."
 
-With its deterministic static analysis engine, it serves as the perfect counterpart to **AI-assisted coding**: ensuring reproducible results and providing a safety net to recheck your entire codebase before deployment.
+---
 
-⭐️ Star if you believe in visible data flows.
+## ⚡ Quick Start
 
-**🚀 Alpha Release** - We're building the privacy scanner that modern development deserves. Zero config, instant insights, built for speed.
-
-📚 [Quick Start](#quick-start) • 🔍 [What We Detect](DETECTION_RULES.md) • 🗺️ [Roadmap](#roadmap) • 🐛 [Report Bug](https://github.com/privalyse/privalyse-cli/issues) • ✨ [Request Feature](https://github.com/privalyse/privalyse-cli/issues)
+### Local
+Install and run in seconds. No config required.
 
 ```bash
 pip install privalyse-cli
 privalyse
-# ✅ Done. Markdown report ready (scan_results.md).
+# ✅ Done. Check scan_results.md
 ```
 
----
+### GitHub Actions
+Add to your CI pipeline in 30 seconds.
 
-## ✨ AI-Native Privacy & Guardrails (New in v0.3.0)
-
-Privalyse now includes specialized features for AI-Model integrations:
-
-*   **🤖 AI Guardrails**: Detects PII leaking into LLM prompts (OpenAI, LangChain, etc.).
-*   **🌍 Data Sovereignty**: Flags data transfers to non-EU providers (AWS, Azure, OpenAI) to help with GDPR compliance.
-*   **🛡️ Policy as Code**: Enforce blocked countries or providers via `privalyse.toml`.
-*   **🧼 Smart Sanitization**: Recognizes `hash()`, `anonymize()` and other cleaning functions to reduce false positives.
-
----
-
-## 🔄 Continuous Monitoring (CI/CD)
-
-## 👁️ Data Flow Visibility & Monitoring
-
-Modern applications are complex webs of data movement. Privalyse provides **Data Flow Visibility** to help you oversee where sensitive data travels.
-
-### Continuous Monitoring
-Privalyse is designed to be run in your CI/CD pipeline to provide continuous monitoring of data flows.
-*   **Detect**: Catch new leaks before they merge.
-*   **Visualize**: See the path of data from Source to Sink.
-*   **Comply**: Ensure every data flow has a legal basis.
-
-To achieve true visibility, Privalyse should be part of your continuous integration pipeline. This ensures that every code change is monitored for new data leaks.
-
-### GitHub Actions Example
 ```yaml
-name: Privacy Monitor
+# .github/workflows/privacy.yml
+name: Privacy Scan
 on: [push, pull_request]
+
 jobs:
-  privalyse-scan:
+  privalyse:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Run Privalyse Scanner
+      - name: Run Privalyse
         uses: privalyse/privalyse-cli@v0.3.1
-        with:
-          root: '.'
-          out: 'report.md'
-          format: 'markdown'
-          
-      - name: Upload Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: privacy-report
-          path: report.md
 ```
 
-The generated `report.md` is a **human-readable Markdown report** that you can view directly in GitHub Actions artifacts or attach to Pull Requests. It provides a clear, visual summary of all findings, compliance risks, and data flow stories.
+### Pre-Commit Hook
+Catch leaks before you commit.
 
-## Installation
+```yaml
+# .pre-commit-config.yaml
+repos:
+  - repo: local
+    hooks:
+      - id: privalyse
+        name: Privalyse Scan
+        entry: privalyse
+        language: system
+        pass_filenames: false
+```
+
+### GitLab CI
+
+```yaml
+# .gitlab-ci.yml
+privalyse_scan:
+  script:
+    - pip install privalyse-cli
+    - privalyse --out report.md
+  artifacts:
+    paths: [report.md]
+```
+
+---
+
+## 🚀 Features
+
+### 🕵️‍♂️ Secret Detection
+Detects hardcoded API keys, tokens, and credentials before they are pushed.
+*   *Supports:* AWS, Stripe, OpenAI, Slack, and generic high-entropy strings.
+
+### 🗣️ PII Leak Prevention
+Identifies Personal Identifiable Information (PII) leaking into logs, external APIs, or analytics.
+*   *Detects:* Emails, Phone Numbers, Credit Cards, SSNs.
+*   *Context Aware:* Understands variable names like `user_email` or `client_id`.
+
+### ⚖️ GDPR & Data Sovereignty
+Maps data flows to ensure compliance.
+*   *Flags:* Data transfers to non-EU providers (e.g., OpenAI, AWS US-East).
+*   *Verifies:* Usage of sanitization functions before data egress.
+
+### 🤖 AI Guardrails
+Specialized checks for LLM-integrated applications.
+*   *Prevents:* Sending sensitive customer data to model prompts.
+*   *Audits:* LangChain and OpenAI SDK usage.
+
+---
+
+## 🤖 For AI Agents & MCP Servers
+
+Privalyse is designed to be **agent-friendly**. If you are building an AI coding agent or using an MCP (Model Context Protocol) server, Privalyse provides structured outputs that agents can understand.
 
 ```bash
-pip install privalyse-cli
+privalyse --format json --out privalyse_report.json
 ```
 
-## Quick Start
-
-```bash
-# Scan current directory (defaults to Markdown output)
-privalyse
-
-# Scan specific folder
-privalyse --root ./backend
-
-# Output as JSON (Structured)
-privalyse --root ./backend --format json --out results.json
-
-# Output as HTML (Visual Dashboard)
-privalyse --root ./backend --format html --out report.html
-```
-
-## ⚙️ Configuration (Policy as Code)
-
-You can enforce privacy policies using a `privalyse.toml` file in your project root.
-
-```toml
-# privalyse.toml
-[policy]
-blocked_countries = ["US", "CN"]  # Fail if data flows to these countries
-blocked_providers = ["openai"]    # Fail if data flows to these providers
-```
-
-When a policy violation is detected (e.g., sending PII to a US server), Privalyse will report a **CRITICAL** finding and exit with a failure code.
-
-## 🎥 See It In Action
-
-![Privalyse CLI Demo](https://privalyse.com/assets/github-privalyse-cli-demo.gif)
-
-## 📊 Example Reports
-
-See how Privalyse analyzes different types of projects:
-
-| Project Type | Description | Report |
-|--------------|-------------|--------|
-| **Bad Practice App** | A vulnerable app full of security holes and GDPR violations. | [View Report](https://github.com/privalyse/privalyse-cli/blob/main/examples/bad-practice-app/scan_results.md) |
-| **Modern Fullstack** | A typical React/Node.js stack with some common issues. | [View Report](https://github.com/privalyse/privalyse-cli/blob/main/examples/modern-fullstack-app/scan_results.md) |
-| **Best Practice App** | A secure, compliant application following GDPR standards. | [View Report](https://github.com/privalyse/privalyse-cli/blob/main/examples/best-practice-app/scan_results.md) |
-
-
-
-
+Agents can read the JSON report to autonomously fix privacy leaks in the codebase.
 
 ---
-
-## ⚡ Try It Now (30 seconds)
-
-**No installation needed** - works in any Python project:
-
-```bash
-pip install privalyse-cli && privalyse --root . --out report.md && cat report.md | head -50
-```
-
-🎯 **Boom. Privacy report generated in 3 seconds.**
-
----
-
-## 🤖 AI Agent Integration
-
-Privalyse is designed to be "Agent-Ready". If you are building an AI coding agent or using LLMs to fix code, Privalyse provides structured, context-rich output that agents can understand.
-
-### For Coding Agents
-When using Privalyse as a tool for an agent:
-1.  **Run with JSON output**: `privalyse --format json --out report.json`
-2.  **Parse the `findings` array**: Each finding now includes:
-    *   `code_context`: The actual lines of code (with surrounding context) where the issue was found.
-    *   `context_start_line` / `context_end_line`: Precise line numbers.
-    *   `suggested_fix`: A human-readable suggestion for fixing the issue.
-    *   `confidence_score`: To help the agent decide whether to act.
-
-### Example JSON Output for Agents
-```json
-{
-  "rule": "HARDCODED_SECRET",
-  "file": "src/config.py",
-  "line": 15,
-  "severity": "critical",
-  "suggested_fix": "Move secret to environment variable (os.environ.get) or secrets manager.",
-  "confidence_score": 1.0,
-  "code_context": [
-    "def connect_db():",
-    "    db_password = \"super_secret_password_123\"  # <--- Finding here",
-    "    return connect(password=db_password)"
-  ]
-}
-```
-This allows agents to **self-correct** code without needing to read the file separately.
-
-### JSON Schema for Agents
-For strict validation, you can use the official JSON schema located at `privalyse_scanner/models/output_schema.json`. This helps LLM agents understand the exact structure of the output they are processing.
-
----
-
-## What It Does
-
-Privalyse performs **Static Monitoring** (Detection) to ensure data safety:
-
-- **Data Flow Visualization**: Tracking where user data moves across your codebase (Source -> Sink).
-- **Hardcoded Secrets**: Detecting API keys, passwords, and tokens.
-- **PII Leakage**: Identifying Personal Identifiable Information in logs and external calls.
-- **GDPR Violations**: Mapping findings to specific GDPR articles (Art. 5, 6, 9, 32).
-- **Security Misconfigurations**: Checking for HTTP vs HTTPS, CORS, and security headers.
-
-> **Note on Monitoring:** In the context of this CLI, "Monitoring" refers to the continuous detection of vulnerabilities in your codebase (e.g., via CI/CD or pre-commit hooks). It does not currently perform live runtime traffic interception.
-
-The scanner uses AST (Abstract Syntax Tree) parsing for both Python and JavaScript/TypeScript to ensure deep understanding of your code structure.
-
-## Features
-
-- **Python & JavaScript/TypeScript** support
-- **AST-based analysis** for Python and JS/TS (deterministic, deep data flow tracking)
-- **Cross-file taint tracking** (follows data flows across imports and modules)
-- **Cross-stack tracing** (links Frontend API calls to Backend routes)
-- **GDPR article mapping** (Art. 5, 6, 9, 32)
-- **Structured Reports** (Executive Summary, Compliance View, File Hotspots)
-- **Multiple output formats** (JSON, Markdown, HTML)
-- **Ignore file support** (`.privalyseignore` for false positives)
-- **100% Local Execution** (no code leaves your machine)
-
----
-
-## 💡 Why Privalyse?
-
-We believe **security shouldn't be a question of price**. Everyone deserves data safety and secure code. That's why Privalyse is **MIT Licensed** and free to use.
-
-### 1. The "Audit-Ready" Approach
-**Don't just find bugs—generate documentation.**
-When your CTO asks *"Are we GDPR compliant?"*, you can't send them a JSON file. Privalyse generates reports you can actually hand to your Data Protection Officer (DPO).
-
-### 2. Focus on Data Flows
-**We find problems even in massive codebases.**
-Privalyse goes beyond simple pattern matching by implementing **Cross-File & Cross-Stack Taint Tracking**. It traces the journey of sensitive data throughout your application—from database models to API endpoints, across network calls to the frontend, and finally to sinks like logging or third-party APIs. By understanding how modules and services interact, we can detect when a variable defined in one file is insecurely used in another, effectively connecting the dots across your entire project structure.
-
-*Note: Visual data flow graphs are on the Roadmap!*
-
-### 3. The Human-in-the-Loop
-The Markdown results are perfect for reviewing AI-generated code before merging. This helps keep control where it really counts.
-**The Problem:** ChatGPT just wrote 500 lines. Did it leak user emails into logs?
-**The Solution:** `privalyse scan ./new-feature --format markdown`
-
-## 🎯 Use Cases
-
-### For Developers
-- ✅ **Review AI-Generated Code:** Catch hardcoded secrets and PII leaks before merging.
-- ✅ **Clean Up Debug Code:** Find forgotten `print()` and `console.log()` statements.
-- ✅ **Learn GDPR:** Understand privacy requirements while you code.
-
-### For Security Teams
-- ✅ **Quick Audits:** Generate compliance reports in seconds.
-- ✅ **Track Progress:** Monitor privacy improvements over time.
-- ✅ **CI/CD Integration (Roadmap):** Catch issues early in the pipeline. 
 
 ## 🗺️ Roadmap
 
-**Current (Alpha v0.1):**
-- ✅ Python & JavaScript/TypeScript analysis
-- ✅ Cross-file taint tracking
-- ✅ GDPR article mapping (Art. 5, 6, 9, 32)
+*   [x] **Python Support** (AST Analysis)
+*   [x] **JavaScript/TypeScript Support** (AST & Regex)
+*   [x] **Cross-File Taint Tracking**
+*   [ ] **VS Code Extension** (Coming Soon)
+*   [ ] **Custom Rule Engine**
 
-- ✅ JSON, Markdown, HTML export
-- ✅ `.privalyseignore` support
+## 🤝 Contributing
 
-**Next Up:**
-- 🔜 **Data Flow display**
-- 🔜 **Smarter detection** Improving the rules and patterns.
-- 🔜 **More Compliance Standards** (CCPA, HIPAA, etc.)
-- 🔜 **GitHub Actions integration** (CI/CD ready)
+We love contributions! Check out [CONTRIBUTING.md](CONTRIBUTING.md) to get started.
 
-- 🔜 **Enhanced test coverage**
+## 📄 License
 
-**Vision (Future):**
-- 🎯 **Multi-language** (Java, Go, Ruby, C#)
-- 🔜 **VS Code extension** (lint as you code)
-- 🎯 **Team features** (shared reports, trends)
-- 🎯 **AI-assisted fixes** (not just detection)
-- 🎯 **Pre-commit hooks**
-
----
-
-## Contributing
-
-We're building this in the open. Contributions welcome!
-
-- Report bugs or suggest features via [Issues](../../issues)
-- See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines
-
----
-
-## License & Disclaimer
-
-MIT License - See [LICENSE](LICENSE) for details.
-
-⚠️ **Alpha Software**: Privalyse helps identify privacy issues but:
-- Does not guarantee complete GDPR compliance
-- Not a substitute for legal counsel
-- Should be part of a broader security strategy
-- May have false positives/negatives as we improve
-
-Always consult privacy professionals for compliance decisions.
-
----
-
-<p align="center">
-  <strong>Built by developers who care about privacy.</strong><br>
-  <a href="../../issues">Report a bug</a> • <a href="../../issues">Request a feature</a> • <a href="CONTRIBUTING.md">Contribute</a>
-</p>
+MIT License. See [LICENSE](LICENSE) for details.
