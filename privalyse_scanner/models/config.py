@@ -1,8 +1,11 @@
 """Scanner configuration models"""
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Set
+from typing import List, Optional, Set, Any, TYPE_CHECKING
 from pathlib import Path
+
+if TYPE_CHECKING:
+    from ..utils.custom_rules import CustomRulesEngine
 
 
 @dataclass
@@ -75,6 +78,9 @@ class ScanConfig:
     js_extensions: Set[str] = field(default_factory=lambda: {'.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs'})
     config_extensions: Set[str] = field(default_factory=lambda: {'.json', '.yaml', '.yml', '.toml', '.ini', '.env'})
     docker_files: Set[str] = field(default_factory=lambda: {'Dockerfile', 'docker-compose.yml', 'docker-compose.yaml'})
+    
+    # Custom rules engine (loaded from config, None = use defaults only)
+    custom_rules: Optional[Any] = None  # CustomRulesEngine instance
     
     def __post_init__(self):
         """Convert paths to Path objects"""

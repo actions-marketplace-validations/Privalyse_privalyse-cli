@@ -13,6 +13,7 @@ else:
         tomllib = None
 
 from ..models.config import ScanConfig, PolicyConfig
+from ..utils.custom_rules import CustomRulesEngine
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +72,9 @@ class ConfigLoader:
             require_sanitization_for_ai=policy_data.get("require_sanitization_for_ai", False)
         )
         
+        # Load custom rules (if any defined)
+        custom_rules = CustomRulesEngine.from_config(data)
+        
         # Extract other config
         return ScanConfig(
             root_path=root_path,
@@ -78,5 +82,6 @@ class ConfigLoader:
             max_workers=data.get("max_workers", 8),
             verbose=data.get("verbose", False),
             debug=data.get("debug", False),
-            policy=policy
+            policy=policy,
+            custom_rules=custom_rules if custom_rules.has_rules() else None
         )

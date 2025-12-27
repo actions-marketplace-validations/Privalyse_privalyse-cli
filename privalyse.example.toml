@@ -29,3 +29,42 @@ ignore_patterns = [
 HARDCODED_SECRET = "CRITICAL"
 PII_LEAK = "HIGH"
 AI_PII_LEAK = "CRITICAL"
+
+
+# =============================================================================
+# CUSTOM RULES
+# Define your own detection rules using regex patterns.
+# These are merged with the built-in rules (built-ins always run).
+# =============================================================================
+
+# Example: Detect internal company tokens
+[[rules]]
+id = "INTERNAL_TOKEN"
+pattern = "ACME-[A-Z0-9]{10}"
+severity = "critical"
+message = "Internal ACME token detected - these should never be in code"
+category = "secret"
+
+# Example: Detect debug flags in production code
+[[rules]]
+id = "DEBUG_FLAG"
+pattern = "DEBUG\\s*=\\s*True"
+severity = "medium"
+message = "Debug flag enabled - ensure this is disabled in production"
+file_patterns = ["*.py"]
+exclude_patterns = ["*_test.py", "test_*.py", "conftest.py"]
+
+# Example: Detect TODO comments with sensitive keywords
+[[rules]]
+id = "TODO_SECURITY"
+pattern = "TODO.*(password|secret|key|token|credential)"
+severity = "low"
+message = "TODO comment mentions sensitive data - review before merging"
+
+# Example: Detect hardcoded localhost URLs (potential dev leftovers)
+[[rules]]
+id = "LOCALHOST_URL"
+pattern = "https?://localhost:[0-9]+"
+severity = "low"
+message = "Hardcoded localhost URL - ensure this is intentional"
+exclude_patterns = ["*.test.*", "*_test.py"]
